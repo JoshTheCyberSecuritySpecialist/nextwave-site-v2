@@ -2,33 +2,34 @@ import {
   BrowserRouter as Router,
   Routes,
   Route,
+  Navigate,
   useLocation,
   useNavigate,
-} from 'react-router-dom';
-import { useEffect } from 'react';
+} from "react-router-dom";
+import { useEffect } from "react";
 
 /* Layout */
-import { MainLayout } from './layouts/MainLayout';
+import { MainLayout } from "./layouts/MainLayout";
 
 /* Pages */
-import { Home } from './pages/Home';
-import { Services } from './pages/Services';
-import { WebDevelopment } from './pages/WebDevelopment';
-import { Cybersecurity } from './pages/Cybersecurity';
-import { AutomationAI } from './pages/AutomationAI';
-import { LocalITSupport } from './pages/LocalITSupport';
-import { Portfolio } from './pages/Portfolio';
-import { About } from './pages/About';
-import { Contact } from './pages/Contact';
-import { Blog } from './pages/Blog';
-import BlogPost from './pages/BlogPost';
-import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
-import BlogAdmin from './pages/BlogAdmin';
+import { Home } from "./pages/Home";
+import { Services } from "./pages/Services";
+import { WebDevelopment } from "./pages/WebDevelopment";
+import { Cybersecurity } from "./pages/Cybersecurity";
+import { AutomationAI } from "./pages/AutomationAI";
+import { LocalITSupport } from "./pages/LocalITSupport";
+import { Portfolio } from "./pages/Portfolio";
+import { About } from "./pages/About";
+import { Contact } from "./pages/Contact";
+import { Blog } from "./pages/Blog";
+import BlogPost from "./pages/BlogPost";
+import Login from "./pages/Login";
+import Dashboard from "./pages/Dashboard";
+import BlogAdmin from "./pages/BlogAdmin";
 
 /* Auth */
-import { AuthProvider } from './contexts/AuthContext';
-import ProtectedRoute from './components/ProtectedRoute';
+import { AuthProvider } from "./contexts/AuthContext";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 /* Scroll to top on route change */
 function ScrollToTop() {
@@ -42,25 +43,21 @@ function ScrollToTop() {
 }
 
 /* App Routes */
-function AppContent() {
-  const location = useLocation();
+function AppRoutes() {
   const navigate = useNavigate();
 
-  const currentPage =
-    location.pathname === '/'
-      ? 'home'
-      : location.pathname.split('/')[1];
-
-  const handleNavigate = (page: string) => {
-    navigate(`/${page}`);
+  const handleNavigate = (path: string) => {
+    navigate(path);
   };
 
   return (
     <>
       <ScrollToTop />
-
       <Routes>
-        {/* Home */}
+        {/* Redirect /home → / */}
+        <Route path="/home" element={<Navigate to="/" replace />} />
+
+        {/* Public Pages */}
         <Route
           path="/"
           element={
@@ -70,7 +67,6 @@ function AppContent() {
           }
         />
 
-        {/* Services */}
         <Route
           path="/services"
           element={
@@ -84,7 +80,7 @@ function AppContent() {
           path="/web-development"
           element={
             <MainLayout currentPage="web-development" onNavigate={handleNavigate}>
-              <WebDevelopment onNavigate={handleNavigate} />
+              <WebDevelopment />
             </MainLayout>
           }
         />
@@ -93,7 +89,7 @@ function AppContent() {
           path="/cybersecurity"
           element={
             <MainLayout currentPage="cybersecurity" onNavigate={handleNavigate}>
-              <Cybersecurity onNavigate={handleNavigate} />
+              <Cybersecurity />
             </MainLayout>
           }
         />
@@ -102,7 +98,7 @@ function AppContent() {
           path="/automation-ai"
           element={
             <MainLayout currentPage="automation-ai" onNavigate={handleNavigate}>
-              <AutomationAI onNavigate={handleNavigate} />
+              <AutomationAI />
             </MainLayout>
           }
         />
@@ -111,37 +107,34 @@ function AppContent() {
           path="/local-it-support"
           element={
             <MainLayout currentPage="local-it-support" onNavigate={handleNavigate}>
-              <LocalITSupport onNavigate={handleNavigate} />
+              <LocalITSupport />
             </MainLayout>
           }
         />
 
-        {/* Portfolio */}
         <Route
           path="/portfolio"
           element={
             <MainLayout currentPage="portfolio" onNavigate={handleNavigate}>
-              <Portfolio onNavigate={handleNavigate} />
+              <Portfolio />
             </MainLayout>
           }
         />
 
-        {/* About */}
         <Route
           path="/about"
           element={
             <MainLayout currentPage="about" onNavigate={handleNavigate}>
-              <About onNavigate={handleNavigate} />
+              <About />
             </MainLayout>
           }
         />
 
-        {/* Contact */}
         <Route
           path="/contact"
           element={
             <MainLayout currentPage="contact" onNavigate={handleNavigate}>
-              <Contact onNavigate={handleNavigate} />
+              <Contact />
             </MainLayout>
           }
         />
@@ -186,20 +179,20 @@ function AppContent() {
             </ProtectedRoute>
           }
         />
+
+        {/* Catch-all */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>
   );
 }
 
-/* App Wrapper */
-function App() {
+export default function App() {
   return (
     <Router>
       <AuthProvider>
-        <AppContent />
+        <AppRoutes />
       </AuthProvider>
     </Router>
   );
 }
-
-export default App;
