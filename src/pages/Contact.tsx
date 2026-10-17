@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { ContactForm } from '../components/ContactForm';
-import { Mail, Phone, MapPin, MessageSquare } from 'lucide-react';
+import { Mail, MapPin, MessageSquare } from 'lucide-react';
 
 interface ContactProps {
   onNavigate: (page: string) => void;
@@ -18,11 +18,7 @@ export const Contact = ({ onNavigate }: ContactProps) => {
       title: 'Email',
       info: 'joshua@nextwavedigitalsolution.com',
     },
-    {
-      icon: Phone,
-      title: 'Phone',
-      info: '(321) 555-WAVE',
-    },
+
     {
       icon: MessageSquare,
       title: 'Response Time',

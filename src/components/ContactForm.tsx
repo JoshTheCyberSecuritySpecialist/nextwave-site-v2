@@ -1,6 +1,7 @@
 import { ChangeEvent, FormEvent, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Send } from 'lucide-react';
+import { isContactSubmissionSuccessful } from '../lib/contactResponse';
 import {
   isServiceInterestId,
   serviceInterestLabel,
@@ -45,7 +46,7 @@ const createHubSpotContact = async (contactData: ContactPayload) => {
     }
   }
 
-  if (!response.ok || data?.success === false) {
+  if (!isContactSubmissionSuccessful(response.ok, data)) {
     throw new Error(data?.error || 'Failed to submit contact');
   }
 

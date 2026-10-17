@@ -116,13 +116,13 @@ export default function BlogAdmin() {
       localStorage.removeItem('blog_draft');
       resetForm();
       loadPosts();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error saving post:', error);
 
       let errorMessage = 'Unknown error';
-      if (error?.message) {
+      if (typeof error === 'object' && error !== null && 'message' in error && typeof error.message === 'string') {
         errorMessage = error.message;
-      } else if (error?.error_description) {
+      } else if (typeof error === 'object' && error !== null && 'error_description' in error && typeof error.error_description === 'string') {
         errorMessage = error.error_description;
       } else if (typeof error === 'string') {
         errorMessage = error;

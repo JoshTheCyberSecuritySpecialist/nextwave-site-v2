@@ -1,4 +1,4 @@
-import { Mail, Phone, MapPin, Linkedin, Twitter, Github } from 'lucide-react';
+import { Mail, MapPin } from 'lucide-react';
 import { bookingPackage, websiteCrmPackage } from '../data/offers';
 
 interface FooterProps {
@@ -26,26 +26,7 @@ export const Footer = ({ onNavigate }: FooterProps) => {
             <p className="text-gray-300 text-sm">
               Booking systems, websites, and customer relationship management for local businesses.
             </p>
-            <div className="flex space-x-4">
-              <a
-                href="#"
-                className="text-gray-400 hover:text-[#2BB0E8] transition-colors"
-              >
-                <Linkedin size={20} />
-              </a>
-              <a
-                href="#"
-                className="text-gray-400 hover:text-[#2BB0E8] transition-colors"
-              >
-                <Twitter size={20} />
-              </a>
-              <a
-                href="#"
-                className="text-gray-400 hover:text-[#2BB0E8] transition-colors"
-              >
-                <Github size={20} />
-              </a>
-            </div>
+
           </div>
 
           <div className="min-w-0">
@@ -155,10 +136,7 @@ export const Footer = ({ onNavigate }: FooterProps) => {
                   joshua@nextwavedigitalsolution.com
                 </a>
               </li>
-              <li className="flex min-w-0 items-start space-x-2 text-gray-400 text-sm">
-                <Phone size={16} className="mt-1 flex-shrink-0 text-[#2BB0E8]" />
-                <span>(321) 555-WAVE</span>
-              </li>
+
             </ul>
           </div>
         </div>
