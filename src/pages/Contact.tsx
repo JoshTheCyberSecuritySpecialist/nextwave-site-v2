@@ -43,7 +43,7 @@ export const Contact = ({ onNavigate }: ContactProps) => {
             Contact NextWave Digital Solutions
           </h1>
           <p className="text-xl text-gray-300 max-w-3xl mx-auto">
-            Let's talk about your project, goals, and how we can help you grow.
+            Tell us about your booking process, website, or another service. Choose a package interest in the form and we will follow up by email.
           </p>
         </motion.div>
 

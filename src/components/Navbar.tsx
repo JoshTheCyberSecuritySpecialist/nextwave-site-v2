@@ -29,16 +29,17 @@ export const Navbar = ({ currentPage, onNavigate }: NavbarProps) => {
     <nav className="fixed top-0 left-0 right-0 z-50 bg-[#003B5C]/80 backdrop-blur-md border-b border-[#2283B8]/20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
-          <div
-            className="flex items-center space-x-3 cursor-pointer"
+          <button
+            type="button"
+            className="flex items-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7dd3f5]"
             onClick={() => handleNavigate('home')}
           >
             <img
               src="/nobackgrounnd_blue_websitebuilder.png"
               alt="NextWave Digital Solutions"
-              className="h-20 w-auto brightness-0 invert drop-shadow-[0_0_8px_rgba(255,255,255,0.5)] hover:drop-shadow-[0_0_12px_rgba(255,255,255,0.8)] transition-all"
+              className="h-14 w-auto max-w-[68vw] brightness-0 invert sm:h-16"
             />
-          </div>
+          </button>
 
           <div className="hidden md:flex items-center space-x-8">
             {navItems.map((item) => (
@@ -72,8 +73,12 @@ export const Navbar = ({ currentPage, onNavigate }: NavbarProps) => {
           </div>
 
           <button
+            type="button"
             onClick={() => setIsOpen(!isOpen)}
-            className="md:hidden text-white p-2"
+            aria-expanded={isOpen}
+            aria-controls="mobile-navigation"
+            aria-label={isOpen ? 'Close menu' : 'Open menu'}
+            className="md:hidden text-white p-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7dd3f5]"
           >
             {isOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
@@ -88,7 +93,7 @@ export const Navbar = ({ currentPage, onNavigate }: NavbarProps) => {
             exit={{ opacity: 0, height: 0 }}
             className="md:hidden bg-[#003B5C]/95 backdrop-blur-lg border-b border-[#2283B8]/20"
           >
-            <div className="px-4 py-6 space-y-4">
+            <div id="mobile-navigation" className="px-4 py-6 space-y-4">
               {navItems.map((item) => (
                 <button
                   key={item.path}

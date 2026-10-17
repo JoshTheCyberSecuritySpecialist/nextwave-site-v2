@@ -7,6 +7,7 @@ import {
   useNavigate,
 } from "react-router-dom";
 import { useEffect } from "react";
+import { MotionConfig } from "framer-motion";
 
 /* Layout */
 import { MainLayout } from "./layouts/MainLayout";
@@ -33,11 +34,22 @@ import ProtectedRoute from "./components/ProtectedRoute";
 
 /* Scroll to top on route change */
 function ScrollToTop() {
-  const { pathname } = useLocation();
+  const { pathname, hash } = useLocation();
 
   useEffect(() => {
-    window.scrollTo(0, 0);
-  }, [pathname]);
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const behavior: ScrollBehavior = reduceMotion ? "auto" : "smooth";
+
+    if (hash) {
+      const target = document.getElementById(hash.slice(1));
+      if (target) {
+        target.scrollIntoView({ behavior, block: "start" });
+        return;
+      }
+    }
+
+    window.scrollTo({ top: 0, left: 0, behavior });
+  }, [pathname, hash]);
 
   return null;
 }
@@ -80,7 +92,7 @@ function AppRoutes() {
           path="/web-development"
           element={
             <MainLayout currentPage="web-development" onNavigate={handleNavigate}>
-              <WebDevelopment />
+              <WebDevelopment onNavigate={handleNavigate} />
             </MainLayout>
           }
         />
@@ -89,7 +101,7 @@ function AppRoutes() {
           path="/cybersecurity"
           element={
             <MainLayout currentPage="cybersecurity" onNavigate={handleNavigate}>
-              <Cybersecurity />
+              <Cybersecurity onNavigate={handleNavigate} />
             </MainLayout>
           }
         />
@@ -98,7 +110,7 @@ function AppRoutes() {
           path="/automation-ai"
           element={
             <MainLayout currentPage="automation-ai" onNavigate={handleNavigate}>
-              <AutomationAI />
+              <AutomationAI onNavigate={handleNavigate} />
             </MainLayout>
           }
         />
@@ -107,7 +119,7 @@ function AppRoutes() {
           path="/local-it-support"
           element={
             <MainLayout currentPage="local-it-support" onNavigate={handleNavigate}>
-              <LocalITSupport />
+              <LocalITSupport onNavigate={handleNavigate} />
             </MainLayout>
           }
         />
@@ -116,7 +128,7 @@ function AppRoutes() {
           path="/portfolio"
           element={
             <MainLayout currentPage="portfolio" onNavigate={handleNavigate}>
-              <Portfolio />
+              <Portfolio onNavigate={handleNavigate} />
             </MainLayout>
           }
         />
@@ -125,7 +137,7 @@ function AppRoutes() {
           path="/about"
           element={
             <MainLayout currentPage="about" onNavigate={handleNavigate}>
-              <About />
+              <About onNavigate={handleNavigate} />
             </MainLayout>
           }
         />
@@ -134,7 +146,7 @@ function AppRoutes() {
           path="/contact"
           element={
             <MainLayout currentPage="contact" onNavigate={handleNavigate}>
-              <Contact />
+              <Contact onNavigate={handleNavigate} />
             </MainLayout>
           }
         />
@@ -189,10 +201,12 @@ function AppRoutes() {
 
 export default function App() {
   return (
-    <Router>
-      <AuthProvider>
-        <AppRoutes />
-      </AuthProvider>
-    </Router>
+    <MotionConfig reducedMotion="user">
+      <Router>
+        <AuthProvider>
+          <AppRoutes />
+        </AuthProvider>
+      </Router>
+    </MotionConfig>
   );
 }

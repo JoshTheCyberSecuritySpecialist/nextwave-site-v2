@@ -11,6 +11,9 @@ export const BackgroundMatrix = () => {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduceMotion) return;
+
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 
@@ -77,7 +80,7 @@ export const BackgroundMatrix = () => {
   }, []);
 
   return (
-    <div className="fixed inset-0 -z-10 overflow-hidden">
+    <div className="fixed inset-0 -z-10 overflow-hidden" aria-hidden="true">
       <canvas
         ref={canvasRef}
         className="absolute inset-0"

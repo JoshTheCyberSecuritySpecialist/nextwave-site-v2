@@ -65,8 +65,8 @@ export const About = ({ onNavigate }: AboutProps) => {
             <div className="p-8 bg-gradient-to-br from-[#2283B8]/10 to-[#2BB0E8]/10 backdrop-blur-sm border border-[#2283B8]/30 rounded-2xl">
               <h2 className="text-3xl font-bold text-white mb-4">Founder Background</h2>
               <p className="text-gray-300 leading-relaxed text-lg mb-4">
-                NextWave Digital Solutions is built on real experience supporting NASA
-                cybersecurity environments and enterprise IT systems.
+                NextWave Digital Solutions is built on professional experience in
+                cybersecurity and enterprise IT systems.
               </p>
               <p className="text-gray-300 leading-relaxed text-lg">
                 We bring the same level of precision, security, and attention to detail

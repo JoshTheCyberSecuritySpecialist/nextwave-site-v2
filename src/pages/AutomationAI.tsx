@@ -1,122 +1,54 @@
-import { motion } from 'framer-motion';
-import { CTASection } from '../components/CTASection';
-import {
-  Zap,
-  GitMerge,
-  MessageSquare,
-  TrendingUp,
-  Bot,
-  Database,
-  Workflow,
-  CheckCircle,
-} from 'lucide-react';
+import { bookingPackage, contactPath, websiteCrmPackage } from '../data/offers';
 
 interface AutomationAIProps {
   onNavigate: (page: string) => void;
 }
 
 export const AutomationAI = ({ onNavigate }: AutomationAIProps) => {
-  const features = [
-    { icon: GitMerge, text: 'Zapier workflows' },
-    { icon: Database, text: 'CRM automation' },
-    { icon: Bot, text: 'AI customer support agents' },
-    { icon: TrendingUp, text: 'Lead automation (HireMate-style)' },
-    { icon: MessageSquare, text: 'Chatbots' },
-    { icon: Workflow, text: 'Data enrichment automations' },
-  ];
-
   return (
-    <div className="pt-32 pb-16">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="text-center mb-16"
-        >
-          <div className="inline-flex p-4 bg-gradient-to-br from-[#2283B8]/20 to-[#2BB0E8]/20 rounded-xl mb-6">
-            <Zap size={48} className="text-[#2BB0E8]" />
-          </div>
-          <h1 className="text-5xl md:text-6xl font-bold text-white mb-6">
-            Automation & AI
-          </h1>
-          <p className="text-xl text-gray-300 max-w-3xl mx-auto">
-            Increase speed. Reduce manual work. Grow smarter.
+    <div className="overflow-x-clip px-4 pb-16 pt-28 sm:px-6 sm:pt-32 lg:px-8">
+      <div className="mx-auto max-w-7xl">
+        <div className="max-w-3xl">
+          <h1 className="text-4xl font-bold tracking-tight text-white sm:text-5xl">Automation</h1>
+          <p className="mt-4 text-lg leading-8 text-slate-200">
+            Automation connects tools you already use. It is quoted separately and is not included in the {bookingPackage.priceDisplay} booking package or the {websiteCrmPackage.priceDisplay} website + CRM package.
           </p>
-        </motion.div>
+        </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 mb-24">
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.2, duration: 0.6 }}
-          >
-            <h2 className="text-3xl font-bold text-white mb-6">What We Build</h2>
-            <div className="space-y-4">
-              {features.map((feature, index) => (
-                <motion.div
-                  key={index}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.3 + index * 0.1, duration: 0.5 }}
-                  className="flex items-center space-x-4 p-4 bg-[#001F33]/40 backdrop-blur-sm border border-[#2283B8]/30 rounded-xl hover:border-[#2BB0E8]/50 transition-all"
-                >
-                  <div className="flex-shrink-0">
-                    <feature.icon size={24} className="text-[#2BB0E8]" />
-                  </div>
-                  <span className="text-lg text-gray-300">{feature.text}</span>
-                </motion.div>
-              ))}
-            </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.2, duration: 0.6 }}
-            className="space-y-8"
-          >
-            <div className="p-8 bg-[#001F33]/40 backdrop-blur-sm border border-[#2283B8]/30 rounded-2xl">
-              <h3 className="text-2xl font-bold text-white mb-4">Work Smarter, Not Harder</h3>
-              <p className="text-gray-300 leading-relaxed mb-4">
-                Automation and AI aren't just buzzwords—they're powerful tools that can
-                transform how your business operates. We build custom automation systems
-                that eliminate repetitive tasks and free up your team to focus on what matters.
-              </p>
-              <p className="text-gray-300 leading-relaxed">
-                From Zapier workflows to custom AI agents, we create intelligent solutions
-                that work seamlessly with your existing tools and processes.
-              </p>
-            </div>
-
-            <div className="p-8 bg-gradient-to-br from-[#2283B8]/10 to-[#2BB0E8]/10 backdrop-blur-sm border border-[#2283B8]/30 rounded-2xl">
-              <h3 className="text-2xl font-bold text-white mb-4">Benefits of Automation</h3>
-              <ul className="space-y-3">
-                {[
-                  'Save hours every week on repetitive tasks',
-                  'Eliminate human error in data entry',
-                  'Instant response to customer inquiries',
-                  'Automated lead qualification and routing',
-                  'Real-time data synchronization',
-                  'Scale operations without adding headcount',
-                ].map((item, index) => (
-                  <li key={index} className="flex items-center space-x-3">
-                    <CheckCircle size={20} className="text-[#2BB0E8] flex-shrink-0" />
-                    <span className="text-gray-300">{item}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </motion.div>
+        <div className="mt-10 grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <section className="min-w-0 rounded-2xl border border-[#2283B8]/35 bg-[#001F33]/75 p-6 sm:p-8">
+            <h2 className="text-2xl font-bold text-white">Included with website + CRM</h2>
+            <ul className="mt-6 space-y-3 text-base leading-7 text-slate-100">
+              <li>Follow-up tasks with due dates</li>
+              <li>Individual email conversations tied to a customer record</li>
+              <li>Appointment confirmations and one configurable reminder template</li>
+            </ul>
+            <p className="mt-6 text-base leading-7 text-slate-200">
+              Those are manual tools for your team. They are not automated marketing campaigns, bulk email, or automatic replies.
+            </p>
+          </section>
+          <section className="min-w-0 rounded-2xl border border-[#2283B8]/35 bg-[#001F33]/75 p-6 sm:p-8">
+            <h2 className="text-2xl font-bold text-white">Quoted separately</h2>
+            <ul className="mt-6 space-y-3 text-base leading-7 text-slate-100">
+              <li>Connections between existing business tools</li>
+              <li>Moving data from an old system</li>
+              <li>Gmail or Outlook synchronization</li>
+              <li>Bulk email and SMS</li>
+              <li>Custom workflows that do not fit the package limits</li>
+            </ul>
+            <p className="mt-6 text-base leading-7 text-slate-200">
+              Tell us which tools you use and which step you want to remove. We confirm the scope in writing before work begins.
+            </p>
+            <button
+              type="button"
+              onClick={() => onNavigate(contactPath('automation'))}
+              className="mt-8 inline-flex min-h-11 items-center justify-center rounded-lg bg-[#2283B8] px-5 py-3 text-base font-semibold text-white hover:bg-[#1b6d99] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+            >
+              Discuss Automation
+            </button>
+          </section>
         </div>
       </div>
-
-      <CTASection
-        title="Ready to automate your business?"
-        description="Let's build your intelligent automation system"
-        buttonText="Build My Automation System"
-        onButtonClick={() => onNavigate('contact')}
-      />
     </div>
   );
 };

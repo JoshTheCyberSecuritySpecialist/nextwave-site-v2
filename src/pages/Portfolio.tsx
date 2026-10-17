@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { useState } from 'react';
-import { Globe, Shield, Briefcase, Calendar, Users, Wallet } from 'lucide-react';
+import { Globe, Shield, Calendar, Users, Wallet } from 'lucide-react';
 import { SystemPortfolioCard } from '../components/SystemPortfolioCard';
 import { ArchitectureDiagram } from '../components/ArchitectureDiagram';
 
