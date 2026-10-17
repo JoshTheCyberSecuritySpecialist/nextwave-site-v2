@@ -4,6 +4,7 @@ import { pathToFileURL } from 'node:url';
 import { createPayments, sign } from './payments.mjs';
 
 export function mockServer({ file = '.local/payments.json' } = {}) {
+  if (process.env.NODE_ENV === 'production') throw Error('Mock payments are forbidden in production');
   const secret = randomBytes(32).toString('hex');
   const payments = createPayments({ file, secret });
   return createServer(async (req, res) => {

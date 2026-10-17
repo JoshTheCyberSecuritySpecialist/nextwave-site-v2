@@ -67,7 +67,7 @@ function AppRoutes() {
     <>
       <ScrollToTop />
       <Routes>
-        <Route path="/checkout" element={<Checkout />} />
+        <Route path="/checkout/*" element={<Checkout />} />
         {/* Redirect /home → / */}
         <Route path="/home" element={<Navigate to="/" replace />} />
 
