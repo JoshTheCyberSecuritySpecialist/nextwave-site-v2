@@ -27,6 +27,7 @@ import BlogPost from "./pages/BlogPost";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import BlogAdmin from "./pages/BlogAdmin";
+import Checkout from "./pages/Checkout";
 
 /* Auth */
 import { AuthProvider } from "./contexts/AuthContext";
@@ -66,6 +67,7 @@ function AppRoutes() {
     <>
       <ScrollToTop />
       <Routes>
+        <Route path="/checkout" element={<Checkout />} />
         {/* Redirect /home → / */}
         <Route path="/home" element={<Navigate to="/" replace />} />
 

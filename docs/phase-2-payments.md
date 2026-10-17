@@ -1,0 +1,59 @@
+# Phase 2 — payments and fulfillment
+
+## Evidence and status
+Repository: git@github.com:JoshTheCyberSecuritySpecialist/nextwave-site-v2.git. Branch: development/launch-readiness. Prior verified slice committed locally as f41d06d. No push, merge, deployment, real charge, Stripe API call or live resource change.
+
+Audit: searched nonignored repository files for Stripe, checkout, payment_link and buy.stripe before implementation; only prior results documentation and a Portfolio reference matched. Inspected package.json, README, src/data/offers.ts, both existing Supabase functions and migration file inventory. No existing payment SDK, Checkout endpoint, webhook, payment links or separate backend reference was found within this checkout. Existing functions create/update HubSpot leads and subscribe newsletters using Supabase/Resend; neither is payment fulfillment. External dashboard Payment Links, another private repository, deployed functions and ignored local secret configuration remain unverified. No secret values inspected. Station connector inventory reports no connected Stripe connector or platform API key; a Stripe setup path exists but is not required for these local mocks.
+
+## Implemented local vertical slice
+- server/payments.mjs: server price allowlist ($799 booking-only, $1,499 website-crm), idempotent checkout request, persistent local JSON orders, raw-body HMAC signature and timestamp verification, amount/currency/order/session matching, paid-only transitions, duplicate event suppression, intake bearer authorization, local customer/project creation, unique queued confirmation and CRM/kickoff work.
+- server/mock-server.mjs: loopback-only HTTP adapter, bounded requests, origin allowlist, no CORS, mock-only payment completion. Secret is generated in memory, not printed or persisted.
+- src/pages/Checkout.tsx and src/App.tsx: /checkout development-only mock UI, package selection, simulated signed payment, server status check, intake and explicit queued-not-sent confirmation. Production build disables this UI. Main sales CTAs deliberately unchanged until real payment integration approval.
+- vite.config.ts: development-only /api proxy to loopback backend.
+- .gitignore: excludes .local payment data. Use synthetic customer information only.
+- supabase/migrations/202610170001_payment_fulfillment.sql: unapplied production schema draft with orders, processed events, intakes, contacts, projects and outbox, constraints and backend-only RLS. Not syntax-tested against PostgreSQL and not deployed.
+
+This is a functional local mock, NOT a Stripe test-mode integration or production backend. JSON storage is single-process, not SQL, not safe for concurrent workers. Mock completion can authorize a simulated payment and must never be deployed. Bearer tokens persist in the local fixture store; production must use hashed, expiring, revocable intake credentials and authenticated ownership. UI reload does not recover the in-memory bearer token. CRM/email jobs are queued data only; no external delivery worker exists yet. Human fulfillment and subscription billing are not automated.
+
+## Secure target architecture and implementation sequence
+1. Apply/review schema only in an approved isolated database. Implement transactional SQL procedures: lock order, insert event ID, validate paid session, update order and enqueue confirmation in ONE transaction. Duplicate events or different paid events for the same order must not duplicate work. Add authenticated customer ownership/token hashes and expiry, retention and audit records. Test concurrent retries/rollback/RLS before deployment.
+2. Implement POST /api/checkout in an approved server runtime (Supabase Edge or separate serverless backend). Browser sends package ID, email and request key, never amount or Stripe secret. Create pending order first, then server-side Stripe Checkout Session with configured test Price ID, mode=payment, order metadata, fixed allowlisted success/cancel URLs and Stripe idempotency key. Recover interrupted session creation without a second order/charge. Reject live credentials in test deployment.
+3. Implement POST /api/webhook with official Stripe SDK constructEvent on untouched raw bytes and webhook signing secret. Do not require browser JWT on Stripe webhook. Accept only expected account/environment/events; verify session, currency, amount and payment status against the order. Handle completed-unpaid, async success/failure, expiry, refunds and disputes explicitly; return retryable server errors until transactional processing succeeds. Never infer payment from success URL.
+4. GET /api/orders/:id and POST /api/orders/:id/intake require owner authentication or short-lived scoped token, rate limits and strict validation. Never put credentials in URL/query logs. Persist paid state before intake. Intake creates/links customer and one project atomically; show fulfillment review state, not delivery promises.
+5. Add transactional outbox worker with leasing, exponential retry/dead-letter status and provider idempotency/reconciliation. Send verified payment confirmation with safe intake link and separately an intake acknowledgement. Upsert HubSpot contacts, create project/task and notify operator. Escape customer text in HTML. Do not reuse lead-function success as proof of email delivery. Use approved sandbox email recipients only during tests.
+6. Replace mock UI adapter with real Checkout redirect only in approved test environment; add sales checkout buttons after package scope confirmation. Test cancel, delayed/failed payment, reload recovery and accessibility in browser. Then obtain explicit approval before any production rollout.
+7. Hosting: retain $149/month after 30 days as stated, subject to final terms verification. Do NOT create a subscription now or enroll automatically. Verify when the 30 days begins, applicable package, cancellation/refund terms and explicit consent. Later implement separate opt-in hosted subscription Checkout and database-backed consent/subscription states with invoice/subscription webhooks. Booking-only ongoing costs remain separately confirmed, not silently $149/month.
+
+## Environment names only — proposed integration contract
+Server: STRIPE_SECRET_KEY (test credential only), STRIPE_WEBHOOK_SECRET, STRIPE_BOOKING_PRICE_ID, STRIPE_WEBSITE_CRM_PRICE_ID, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, APP_BASE_URL, RESEND_API_KEY, PAYMENT_FROM_EMAIL, HUBSPOT_PRIVATE_APP_TOKEN, INTAKE_TOKEN_SECRET.
+Later, only after hosting terms approval: STRIPE_HOSTING_MONTHLY_PRICE_ID, HOSTING_TERMS_VERSION.
+Existing browser configuration: VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY. Browser Stripe publishable key is not required for server-created Checkout URL redirects; VITE_STRIPE_PUBLISHABLE_KEY only if Stripe.js is selected later. Never prefix server secrets with VITE_. No secret values belong in source, docs, output or commits.
+
+## Verification performed
+`node --test tests/*.test.mjs`: 11/11 pass (7 previous contact tests plus 4 payment suites). Covers local persisted payment-to-intake/customer/project, checkout retry/conflict, both package amounts, invalid package, prepayment intake rejection, signatures/staleness, mismatched amount/currency/metadata, unpaid state, duplicate events, restart persistence, bearer authorization and complete HTTP path.
+`npm run typecheck`: pass.
+`npm run lint`: pass, two pre-existing warnings in AuthContext.tsx and BlogPost.tsx.
+`npm run build`: pass; existing outdated Browserslist and >500kB bundle warnings remain.
+`git diff --check`: initially failed on mixed CRLF/LF additions. Inspected implicated files and Git autocrlf setting, normalized those three files to LF, then reran the entire same check sequence successfully. No functional test failures.
+Not performed: real Stripe test checkout/webhook, browser-driven UI test, SQL migration/RLS/concurrency test, external CRM/email delivery, production parity, refunds/subscriptions. HTTP tests start ephemeral loopback servers and close them; no development server is left running.
+
+To run mock manually: `node server/mock-server.mjs` and `npm run dev -- --host 127.0.0.1 --port 5173`; open http://127.0.0.1:5173/checkout. Do not expose mock backend to the internet.
+
+## Software — Build & Test workflow
+Live readback: routing is live. Status: "2 TO FIX · BAY 1 (ENGINEER) NEEDS AN AGENT".
+How it runs: "It runs when you send it a job. [pick a engineer] builds it; [pick a tester] tests it and sends it back to ENGINEER until it is approved (3 tries max); [the result reaches the OUTBOX once every step has an agent]".
+Both ENGINEER p139 and TESTER p140 are unassigned; both tool lists are empty. Only NEXUS has a workstation. Loop p141 permits three passes; max six hops and $2/message. No schedule/channel/folder/webhook starts it; manual SEND A JOB is appropriate, not itself an error. No workflow execution was claimed or performed.
+
+Configuration steps (requested instructions only; no crew or layout changes made):
+1. CREW > RECRUIT: summon Engineer (engineer class) and Tester (apptester class). Each gets its own workstation automatically; do not create duplicate desks.
+2. BUILD MODE: select ENGINEER bay p139 in BUILD & TEST and assign Engineer; select TESTER bay p140 and assign Tester. Ensure each agent's actual bound workstation is in the intended room (agents work at their first bound desk).
+3. In each workstation room place INTEL CAB (files) and WORKBENCH (terminal). Give DISH only if public documentation/browser research is needed. No payments connector, production credentials or broad web access is necessary for local mock verification. Review each dossier BRIEF CAN DO list afterward.
+4. SETTINGS > PERMISSIONS, per agent: LET IT WORK scoped to approved C:\Users\krypt\Myprojects\nextwave-site-v2, not FULL POWER. Keep consent gates on writes/shell outside approved scope and network actions. Tool access can still require approvals; do not bypass them. Tester needs terminal for tests and files for inspection, not production/account credentials. File capability grants read/write, so a "read-only tester" brief alone is not a security boundary; use CHECK WITH ME for Tester if writes must require explicit consent.
+5. Dossier CONFIG/standing instructions: Engineer changes only development/launch-readiness, no push/merge/deploy/live service calls; Tester runs node tests/typecheck/lint/build, reports exact commands and errors, and does not repair code or alter expectations to get a pass. Never supply either with live Stripe or production database secrets.
+6. AUTOMATE > WORKFLOWS: inspect SOFTWARE · BUILD & TEST, verify both assigned names and no missing-compute/tools warnings. SEND A JOB with this project path, branch, acceptance checks and mock-only boundaries. Confirm Engineer -> Tester -> review loop -> OUTBOX, three tries max. Verify readiness via a fresh station.layout read, then prove execution with a small no-production smoke job. Configuration alone is not proof the line ran.
+
+## Remaining release gates
+Authorized Stripe test credentials/isolated database; official SDK/backend adapter; transactional database processing; real customer authentication/intake recovery; retrying CRM/email worker and authorized delivery tests; approved hosting terms and consent; authorized test-mode success/cancel/failure/webhook replay/refund evidence; browser tests; separate production approval. Groupon stays blocked until payment and fulfillment evidence passes.
+
+## Scheduled monitoring
+Added Next Wave public launch regression watch, weekdays 8am America/New_York, results to this chat. Read-only public page evidence, package/placeholder/link changes and top three verification actions; no forms or charges. Existing Monday 9am Weekly Launch Priorities and Customer Journey Playbook were not duplicated. Pause/edit in AUTOMATE > SCHEDULES.
