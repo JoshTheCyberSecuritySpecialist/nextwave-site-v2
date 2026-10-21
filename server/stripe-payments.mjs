@@ -2,12 +2,26 @@ import { createHash, createHmac, randomBytes } from 'node:crypto';
 import { packages, verify } from './payments.mjs';
 
 const hash = value => createHash('sha256').update(value).digest('hex');
+export const LOCAL_DEV_ORIGINS = Object.freeze(['http://127.0.0.1:5173', 'http://localhost:5173']);
+export const PRODUCTION_WEB_ORIGINS = Object.freeze(['https://nextwavedigitalsolution.com', 'https://www.nextwavedigitalsolution.com']);
 export function testOnly(env = process.env) {
   if (env.NODE_ENV === 'production') throw Error('Test backend forbidden in production');
 }
-export function createStripe({ secretKey, fetchImpl = fetch, env = process.env }) {
-  testOnly(env);
-  if (!/^sk_test_[A-Za-z0-9]+$/.test(secretKey ?? '')) throw Error('Stripe test secret required');
+export function assertStripeKeyMatchesMode(secretKey, stripeMode) {
+  if (stripeMode !== 'test' && stripeMode !== 'live') throw Error('STRIPE_MODE must be test or live');
+  const live = /^(sk|rk)_live_[A-Za-z0-9]+$/.test(secretKey ?? '');
+  const test = /^(sk|rk)_test_[A-Za-z0-9]+$/.test(secretKey ?? '');
+  if (!live && !test) throw Error('Stripe secret key is missing or invalid');
+  if ((stripeMode === 'live') !== live) throw Error('Stripe live/test environment mismatch');
+  return live;
+}
+export function createStripe({ secretKey, fetchImpl = fetch, env = process.env, production = false, livemode = false }) {
+  if (!production) {
+    testOnly(env);
+    if (!/^(sk|rk)_test_[A-Za-z0-9]+$/.test(secretKey ?? '')) throw Error('Stripe test secret required');
+    if (livemode) throw Error('Stripe live/test environment mismatch');
+  } else if (assertStripeKeyMatchesMode(secretKey, livemode ? 'live' : 'test') !== livemode) throw Error('Stripe live/test environment mismatch');
+  const sessionPattern = livemode ? /^cs_live_[A-Za-z0-9_]+$/ : /^cs_test_[A-Za-z0-9_]+$/;
   async function request(path, body, key) {
     const response = await fetchImpl(`https://api.stripe.com/v1/${path}`, {
       method: body ? 'POST' : 'GET', redirect: 'error', signal: AbortSignal.timeout(15000),
@@ -16,7 +30,7 @@ export function createStripe({ secretKey, fetchImpl = fetch, env = process.env }
     });
     if (!response.ok) throw Error('Stripe request failed');
     const session = await response.json();
-    if (session.livemode !== false || !/^cs_test_[A-Za-z0-9_]+$/.test(session.id ?? '')) throw Error('Not a test checkout session');
+    if (session.livemode !== livemode || !sessionPattern.test(session.id ?? '')) throw Error(production ? 'Stripe live/test environment mismatch' : 'Not a test checkout session');
     return session;
   }
   return {
@@ -32,18 +46,21 @@ export function createStripe({ secretKey, fetchImpl = fetch, env = process.env }
       }, `checkout:${order.id}`);
     },
     retrieve(id) {
-      if (!/^cs_test_[A-Za-z0-9_]+$/.test(id ?? '')) throw Error('Invalid session');
+      if (!sessionPattern.test(id ?? '')) throw Error('Invalid session');
       return request(`checkout/sessions/${encodeURIComponent(id)}`);
     },
   };
 }
 
 // Exact service-role RPC boundary: docs/phase3-db-contract.md.
-export function createSupabaseDb({ url, serviceKey, fetchImpl = fetch, env = process.env }) {
-  testOnly(env);
-  const parsed = new URL(url);
+export function createSupabaseDb({ url, serviceKey, fetchImpl = fetch, env = process.env, production = false }) {
+  if (!production) testOnly(env);
+  let parsed;
+  try { parsed = new URL(url); } catch { throw Error('Invalid Supabase URL'); }
+  const localHttp = parsed.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(parsed.hostname);
+  const allowLocal = !production || env.NODE_ENV !== 'production';
   if (parsed.username || parsed.password || parsed.search || parsed.hash || parsed.pathname !== '/' ||
-      !(parsed.protocol === 'https:' || (parsed.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(parsed.hostname)))) throw Error('Invalid Supabase URL');
+      !(parsed.protocol === 'https:' || (allowLocal && localHttp))) throw Error('Invalid Supabase URL');
   if (typeof serviceKey !== 'string' || !serviceKey) throw Error('Supabase service key required');
   return {
     async rpc(operation, input) {
@@ -65,11 +82,18 @@ export function deriveIntakeToken(orderId, tokenSecret) {
   return createHmac('sha256', tokenSecret).update(`intake:v1:${orderId}`).digest('hex');
 }
 
-export function createStripePayments({ stripe, db, webhookSecret, tokenSecret, origin = 'http://127.0.0.1:5173', env = process.env }) {
-  testOnly(env);
-  if (!['http://127.0.0.1:5173', 'http://localhost:5173'].includes(origin)) throw Error('Fixed local origin required');
+export function createStripePayments({ stripe, db, webhookSecret, tokenSecret, origin = 'http://127.0.0.1:5173', env = process.env, production = false, livemode = false }) {
+  if (!production) {
+    testOnly(env);
+    if (livemode) throw Error('Stripe live/test environment mismatch');
+    if (!LOCAL_DEV_ORIGINS.includes(origin)) throw Error('Fixed local origin required');
+  } else if (env.NODE_ENV === 'production') {
+    if (!PRODUCTION_WEB_ORIGINS.includes(origin)) throw Error('Production website origin is not allowed');
+  } else if (![...LOCAL_DEV_ORIGINS, ...PRODUCTION_WEB_ORIGINS].includes(origin)) throw Error('Origin is not allowed');
   if (typeof webhookSecret !== 'string' || !webhookSecret.startsWith('whsec_') || webhookSecret.length < 12) throw Error('Webhook secret required');
   deriveIntakeToken('configuration-check', tokenSecret);
+  const sessionPrefix = livemode ? 'cs_live_' : 'cs_test_';
+  const corsOrigins = production && env.NODE_ENV === 'production' ? PRODUCTION_WEB_ORIGINS : [origin];
   async function authorized(id, token) {
     if (typeof id !== 'string' || !/^[a-zA-Z0-9-]{1,80}$/.test(id) || !/^[a-f0-9]{64}$/.test(token ?? '')) throw Error('Unauthorized');
     const order = await db.rpc('p3_order_status', { p_order_id: id, p_token_hash: hash(token) });
@@ -77,13 +101,15 @@ export function createStripePayments({ stripe, db, webhookSecret, tokenSecret, o
     return order;
   }
   function match(session, order) {
-    if (session.livemode !== false || session.mode !== 'payment' || session.id !== order.sessionId ||
+    if (session.livemode !== livemode || typeof session.id !== 'string' || !session.id.startsWith(sessionPrefix)) throw Error('Stripe live/test environment mismatch');
+    if (session.mode !== 'payment' || session.id !== order.sessionId ||
         session.metadata?.order_id !== order.id || session.client_reference_id !== order.id ||
         session.amount_total !== order.amount || session.currency !== 'usd' || order.currency !== 'usd' ||
         !Object.hasOwn(packages, order.packageId) || order.amount !== packages[order.packageId]) throw Error('Payment mismatch');
   }
   return {
     origin,
+    corsOrigins,
     async checkout({ packageId, email, requestId }) {
       if (!Object.hasOwn(packages, packageId) || typeof email !== 'string' || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
           !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(requestId ?? '')) throw Error('Invalid checkout');
@@ -98,12 +124,13 @@ export function createStripePayments({ stripe, db, webhookSecret, tokenSecret, o
       const checkoutUrl = new URL(session.url);
       if (checkoutUrl.origin !== 'https://checkout.stripe.com' || checkoutUrl.username || checkoutUrl.password) throw Error('Unsafe checkout redirect');
       await db.rpc('p3_checkout_attach', { p_order_id: order.id, p_session_id: session.id, p_checkout_url: checkoutUrl.href, p_token_hash: hash(deriveIntakeToken(order.id, tokenSecret)) });
-      return { id: order.id, sessionId: session.id, url: checkoutUrl.href, token: deriveIntakeToken(order.id, tokenSecret), mode: 'stripe-test' };
+      return { id: order.id, sessionId: session.id, url: checkoutUrl.href, token: deriveIntakeToken(order.id, tokenSecret), mode: livemode ? 'stripe-live' : 'stripe-test' };
     },
     async webhook(raw, signature) {
       verify(raw, signature, webhookSecret);
       const event = JSON.parse(raw);
-      if (event.livemode !== false || !/^evt_[A-Za-z0-9_]+$/.test(event.id ?? '')) throw Error('Invalid test event');
+      if (event.livemode !== livemode) throw Error('Stripe live/test environment mismatch');
+      if (!/^evt_[A-Za-z0-9_]+$/.test(event.id ?? '')) throw Error('Invalid test event');
       const types = { 'checkout.session.completed': 'completed', 'checkout.session.async_payment_succeeded': 'completed', 'checkout.session.async_payment_failed': 'failed', 'checkout.session.expired': 'expired' };
       if (!Object.hasOwn(types, event.type)) return { ignored: true };
       const incoming = event.data?.object;

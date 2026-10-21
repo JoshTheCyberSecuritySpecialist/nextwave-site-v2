@@ -6,7 +6,11 @@ test('loopback HTTP origin, no-store, body cap, bearer boundary, no mock endpoin
   const payments = {
     origin: 'http://127.0.0.1:5173',
     async checkout(input) { return { tokenSeen: input.token, amount: 79900 }; },
-    async webhook() { return { accepted: true }; },
+    async webhook(raw) {
+      assert.ok(Buffer.isBuffer(raw));
+      assert.equal(raw.toString('utf8'), '{}');
+      return { accepted: true };
+    },
     async status(id, token) { if (!token) throw Error('Unauthorized'); return { id, status: 'pending' }; },
   };
   const server = stripeServer({ payments, env: {} });

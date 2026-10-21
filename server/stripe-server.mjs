@@ -22,15 +22,15 @@ export function stripeServer({ payments, env = process.env }) {
         if (size > 65536) { reply(413, { error: 'Body too large' }); return; }
         chunks.push(chunk);
       }
-      const raw = Buffer.concat(chunks).toString('utf8');
+      const raw = Buffer.concat(chunks);
       const token = /^Bearer ([a-f0-9]{64})$/.exec(req.headers.authorization ?? '')?.[1];
       let result;
       if (webhook) result = await payments.webhook(raw, req.headers['stripe-signature']);
-      else if (req.method === 'POST' && url.pathname === '/api/checkout') result = await payments.checkout({ ...JSON.parse(raw), token });
+      else if (req.method === 'POST' && url.pathname === '/api/checkout') result = await payments.checkout({ ...JSON.parse(raw.toString('utf8')), token });
       else {
         const match = /^\/api\/orders\/([a-zA-Z0-9-]{1,80})(\/intake)?$/.exec(url.pathname);
         if (match && req.method === 'GET' && !match[2]) result = await payments.status(match[1], token);
-        else if (match && req.method === 'POST' && match[2]) result = await payments.intake(match[1], token, JSON.parse(raw));
+        else if (match && req.method === 'POST' && match[2]) result = await payments.intake(match[1], token, JSON.parse(raw.toString('utf8')));
         else return reply(404, { error: 'Not found' });
       }
       reply(200, result);

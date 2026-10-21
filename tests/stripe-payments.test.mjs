@@ -112,3 +112,10 @@ test('unattached checkout older than 23h refuses session creation', async () => 
   let called = false; f.stripe.create = async () => { called = true; throw Error('Must not create'); };
   await assert.rejects(f.checkout(), /reconciliation/); assert.equal(called, false);
 });
+
+ test('restricted test keys accepted; live and malformed credentials rejected', () => {
+  assert.doesNotThrow(() => createStripe({ secretKey: 'rk_test_fixture', env: {} }));
+  for (const secretKey of ['rk_live_fixture', 'sk_live_fixture', '', 'rk_test_']) {
+    assert.throws(() => createStripe({ secretKey, env: {} }), /Stripe test secret required/);
+  }
+});
