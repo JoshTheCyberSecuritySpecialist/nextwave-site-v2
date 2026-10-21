@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import handler from '../api/[...path].js';
-import { RENDER_API_ORIGIN, apiUrl, checkoutAvailability, resolveApiBase } from '../src/lib/payments-client.mjs';
+import { RENDER_API_ORIGIN, apiUrl, checkoutAvailability, checkoutPath, checkoutPhase, resolveApiBase } from '../src/lib/payments-client.mjs';
 
 test('checkout stays disabled in production unless test mode is explicit', () => {
   assert.equal(checkoutAvailability({ dev: false }), 'disabled');
@@ -55,4 +55,26 @@ test('checkout page follows only Stripe test sessions', async () => {
   assert.match(source, /result\.mode !== 'stripe-test'/);
   assert.match(source, /checkout\.stripe\.com/);
   assert.match(source, /live-blocked/);
+  assert.match(source, /A redirect is not proof of payment/);
+  assert.match(source, /\/api\/orders\//);
+  assert.match(source, /packageId, email, requestId/);
+  assert.equal(source.includes('amount:'), false);
+});
+
+test('fixed-price cards link to test checkout and quote services stay on contact', async () => {
+  assert.equal(checkoutPath('booking-only'), '/checkout?package=booking-only');
+  assert.equal(checkoutPath('website-crm'), '/checkout?package=website-crm');
+  assert.throws(() => checkoutPath('cybersecurity'), /Invalid package/);
+  assert.equal(checkoutPhase('/checkout/success'), 'success');
+  assert.equal(checkoutPhase('/checkout/cancel'), 'cancel');
+  assert.equal(checkoutPhase('/checkout/pending'), 'pending');
+  assert.equal(checkoutPhase('/checkout'), 'review');
+  const link = await readFile(new URL('../src/components/TestCheckoutLink.tsx', import.meta.url), 'utf8');
+  assert.match(link, /checkoutPath\(packageId\)/);
+  assert.match(link, /availability !== 'test'/);
+  const services = await readFile(new URL('../src/pages/Services.tsx', import.meta.url), 'utf8');
+  assert.match(services, /checkoutPath\(bookingPackage\.id\)|packageId=\{bookingPackage\.id\}/);
+  assert.match(services, /packageId=\{websiteCrmPackage\.id\}/);
+  assert.match(services, /contactPath\(service\.id\)/);
+  assert.equal(services.includes('checkoutPath(service'), false);
 });

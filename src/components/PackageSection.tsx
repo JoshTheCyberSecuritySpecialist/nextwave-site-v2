@@ -1,3 +1,4 @@
+import { TestCheckoutLink } from './TestCheckoutLink';
 import { bookingPackage, comparisonRows, contactPath, websiteCrmPackage } from '../data/offers';
 
 interface PackageSectionProps {
@@ -10,7 +11,10 @@ const cardClass =
 const listClass = 'mt-6 space-y-3 text-base leading-6 text-slate-100';
 
 const buttonClass =
-  'mt-8 inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-[#2283B8] px-5 py-3 text-center text-base font-semibold text-white transition-colors hover:bg-[#1b6d99] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white';
+  'inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-[#2283B8] px-5 py-3 text-center text-base font-semibold text-white transition-colors hover:bg-[#1b6d99] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white';
+
+const testCheckoutClass =
+  'inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-[#2BB0E8] px-5 py-3 text-center text-base font-semibold text-white hover:bg-[#2283B8]/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white';
 
 export const PackageSection = ({ onNavigate }: PackageSectionProps) => {
   return (
@@ -43,13 +47,16 @@ export const PackageSection = ({ onNavigate }: PackageSectionProps) => {
               ))}
             </ul>
             <p className="mt-6 text-base leading-7 text-slate-200">{bookingPackage.kickoffNote}</p>
-            <button
-              type="button"
-              className={buttonClass}
-              onClick={() => onNavigate(contactPath(bookingPackage.id))}
-            >
-              {bookingPackage.cta}
-            </button>
+            <div className="mt-8 flex flex-col gap-3">
+              <button
+                type="button"
+                className={buttonClass}
+                onClick={() => onNavigate(contactPath(bookingPackage.id))}
+              >
+                {bookingPackage.cta}
+              </button>
+              <TestCheckoutLink packageId={bookingPackage.id} className={testCheckoutClass} />
+            </div>
           </article>
 
           <article className={cardClass}>
@@ -74,13 +81,16 @@ export const PackageSection = ({ onNavigate }: PackageSectionProps) => {
               <span className="font-semibold text-white">Package limits. </span>
               {websiteCrmPackage.limits}
             </p>
-            <button
-              type="button"
-              className={buttonClass}
-              onClick={() => onNavigate(contactPath(websiteCrmPackage.id))}
-            >
-              {websiteCrmPackage.cta}
-            </button>
+            <div className="mt-8 flex flex-col gap-3">
+              <button
+                type="button"
+                className={buttonClass}
+                onClick={() => onNavigate(contactPath(websiteCrmPackage.id))}
+              >
+                {websiteCrmPackage.cta}
+              </button>
+              <TestCheckoutLink packageId={websiteCrmPackage.id} className={testCheckoutClass} />
+            </div>
           </article>
         </div>
 

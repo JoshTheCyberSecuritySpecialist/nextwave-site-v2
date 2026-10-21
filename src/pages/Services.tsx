@@ -1,3 +1,4 @@
+import { TestCheckoutLink } from '../components/TestCheckoutLink';
 import { additionalServices, bookingPackage, contactPath, websiteCrmPackage } from '../data/offers';
 
 interface ServicesProps {
@@ -40,6 +41,7 @@ export const Services = ({ onNavigate }: ServicesProps) => {
               <button type="button" className={primaryButton} onClick={() => onNavigate(contactPath(bookingPackage.id))}>
                 {bookingPackage.cta}
               </button>
+              <TestCheckoutLink packageId={bookingPackage.id} className={secondaryButton} />
               <button type="button" className={secondaryButton} onClick={() => onNavigate('/#packages')}>
                 Compare packages
               </button>
@@ -63,6 +65,7 @@ export const Services = ({ onNavigate }: ServicesProps) => {
               <button type="button" className={primaryButton} onClick={() => onNavigate(contactPath(websiteCrmPackage.id))}>
                 {websiteCrmPackage.cta}
               </button>
+              <TestCheckoutLink packageId={websiteCrmPackage.id} className={secondaryButton} />
               <button type="button" className={secondaryButton} onClick={() => onNavigate('web-development')}>
                 Website details
               </button>

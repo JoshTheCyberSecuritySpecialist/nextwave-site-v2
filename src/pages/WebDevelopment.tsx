@@ -1,3 +1,4 @@
+import { TestCheckoutLink } from '../components/TestCheckoutLink';
 import { bookingPackage, contactPath, websiteCrmPackage, websiteSetupItems } from '../data/offers';
 
 interface WebDevelopmentProps {
@@ -62,6 +63,10 @@ export const WebDevelopment = ({ onNavigate }: WebDevelopmentProps) => {
             >
               {websiteCrmPackage.cta}
             </button>
+            <TestCheckoutLink
+              packageId={websiteCrmPackage.id}
+              className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[#2BB0E8] px-5 py-3 text-base font-semibold text-white hover:bg-[#2283B8]/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+            />
             <button
               type="button"
               onClick={() => onNavigate('/#packages')}

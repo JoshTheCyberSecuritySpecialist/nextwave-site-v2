@@ -22,3 +22,18 @@ export function checkoutAvailability({ dev = false, configured } = {}) {
   if (dev && (configured === undefined || configured === '')) return 'test';
   return 'disabled';
 }
+
+export const PURCHASABLE_PACKAGE_IDS = Object.freeze(['booking-only', 'website-crm']);
+
+export function checkoutPath(packageId) {
+  if (!PURCHASABLE_PACKAGE_IDS.includes(packageId)) throw Error('Invalid package');
+  return `/checkout?package=${encodeURIComponent(packageId)}`;
+}
+
+export function checkoutPhase(pathname) {
+  const path = typeof pathname === 'string' ? pathname.replace(/\/+$/, '') : '';
+  if (path.endsWith('/success')) return 'success';
+  if (path.endsWith('/cancel')) return 'cancel';
+  if (path.endsWith('/pending')) return 'pending';
+  return 'review';
+}
