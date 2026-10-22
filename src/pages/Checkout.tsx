@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { bookingPackage, websiteCrmPackage } from '../data/offers';
-import { apiUrl, checkoutAvailability, checkoutPath, checkoutPhase } from '../lib/payments-client.mjs';
+import { apiUrl, checkoutAvailability, checkoutIsShown, checkoutPath, checkoutPhase } from '../lib/payments-client.mjs';
 
 type Order = { id: string; token: string };
 type ApiResult = { error?: string; url?: string; mode?: string; id?: string; token?: string; status?: string; packageId?: string };
@@ -63,7 +63,7 @@ export default function Checkout() {
   const [busy, setBusy] = useState(false);
   const [unmatched, setUnmatched] = useState(false);
   const [checks, setChecks] = useState(0);
-  const enabled = availability === 'test';
+  const enabled = checkoutIsShown(availability);
   const purchased = knownPackage(confirmedPackage);
 
   useEffect(() => {
@@ -165,15 +165,14 @@ export default function Checkout() {
   }
 
   return <main className="mx-auto min-h-screen max-w-3xl px-4 py-10 sm:px-6 sm:py-16">
-    <p className="text-sm font-semibold uppercase tracking-wide text-[#7dd3f5]">Test checkout</p>
+    <p className="text-sm font-semibold uppercase tracking-wide text-[#7dd3f5]">Checkout</p>
     <div className="mt-4">
       <Link to="/services" className="text-base text-[#7dd3f5] underline">Back to services</Link>
     </div>
     {availability === 'live-blocked' && <p className="mt-8 text-lg leading-8">Live checkout is not enabled. Real charges stay off until a verified Stripe test payment is confirmed.</p>}
-    {availability === 'disabled' && <p className="mt-8 text-lg leading-8">Checkout is not enabled. Contact Next Wave to confirm scope and payment arrangements.</p>}
     {enabled && phase === 'review' && <section className="mt-8 space-y-6">
       <h1 className="text-3xl font-bold sm:text-4xl">{selected ? selected.name : 'Choose a package'}</h1>
-      <p>Test mode only. No real charges. No recurring hosting plan is enrolled in this payment.</p>
+      <p>No recurring hosting plan is enrolled in this payment. Real charges stay off until a verified test payment is confirmed.</p>
       {!selected && <div className="flex flex-col gap-3 sm:flex-row">
         <Link className={buttonClass} to={checkoutPath(bookingPackage.id)}>{bookingPackage.name}</Link>
         <Link className={buttonClass} to={checkoutPath(websiteCrmPackage.id)}>{websiteCrmPackage.name}</Link>
@@ -201,7 +200,7 @@ export default function Checkout() {
           <label className="block">Email
             <input className={fieldClass} name="email" type="email" required maxLength={254} autoComplete="email" />
           </label>
-          <button disabled={busy} className={buttonClass}>Continue to Stripe test checkout</button>
+          <button disabled={busy} className={buttonClass}>Continue to secure checkout</button>
         </form>
       </>}
     </section>}

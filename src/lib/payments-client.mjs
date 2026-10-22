@@ -23,6 +23,10 @@ export function checkoutAvailability({ dev = false, configured } = {}) {
   return 'disabled';
 }
 
+export function checkoutIsShown(mode) {
+  return mode === 'test' || mode === 'disabled';
+}
+
 export const PURCHASABLE_PACKAGE_IDS = Object.freeze(['booking-only', 'website-crm']);
 
 export function checkoutPath(packageId) {

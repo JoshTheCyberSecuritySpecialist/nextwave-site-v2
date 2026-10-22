@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import handler from '../api/[...path].js';
-import { RENDER_API_ORIGIN, apiUrl, checkoutAvailability, checkoutPath, checkoutPhase, resolveApiBase } from '../src/lib/payments-client.mjs';
+import { RENDER_API_ORIGIN, apiUrl, checkoutAvailability, checkoutIsShown, checkoutPath, checkoutPhase, resolveApiBase } from '../src/lib/payments-client.mjs';
 
 test('checkout stays disabled in production unless test mode is explicit', () => {
   assert.equal(checkoutAvailability({ dev: false }), 'disabled');
@@ -13,6 +13,9 @@ test('checkout stays disabled in production unless test mode is explicit', () =>
   assert.equal(checkoutAvailability({ dev: true, configured: 'disabled' }), 'disabled');
   assert.equal(checkoutAvailability({ dev: true }), 'test');
   assert.equal(checkoutAvailability({ dev: true, configured: 'test' }), 'test');
+  assert.equal(checkoutIsShown('disabled'), true);
+  assert.equal(checkoutIsShown('test'), true);
+  assert.equal(checkoutIsShown('live-blocked'), false);
 });
 
 test('production browser calls the Render API and local dev stays on loopback', () => {
@@ -71,7 +74,9 @@ test('fixed-price cards link to test checkout and quote services stay on contact
   assert.equal(checkoutPhase('/checkout'), 'review');
   const link = await readFile(new URL('../src/components/TestCheckoutLink.tsx', import.meta.url), 'utf8');
   assert.match(link, /checkoutPath\(packageId\)/);
-  assert.match(link, /availability !== 'test'/);
+  assert.match(link, /checkoutIsShown\(availability\)/);
+  assert.match(link, /Continue to checkout/);
+  assert.equal(link.includes('Continue to test checkout'), false);
   const services = await readFile(new URL('../src/pages/Services.tsx', import.meta.url), 'utf8');
   assert.match(services, /checkoutPath\(bookingPackage\.id\)|packageId=\{bookingPackage\.id\}/);
   assert.match(services, /packageId=\{websiteCrmPackage\.id\}/);
