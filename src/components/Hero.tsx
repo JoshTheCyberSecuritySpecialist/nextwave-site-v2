@@ -1,5 +1,3 @@
-import { WorkflowIllustration } from './WorkflowIllustration';
-
 interface HeroProps {
   onNavigate: (page: string) => void;
 }
@@ -33,10 +31,6 @@ export const Hero = ({ onNavigate }: HeroProps) => {
               Discuss Your Business
             </button>
           </div>
-        </div>
-
-        <div className="mt-12">
-          <WorkflowIllustration />
         </div>
       </div>
     </section>

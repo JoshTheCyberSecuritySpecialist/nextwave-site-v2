@@ -21,6 +21,11 @@ export const Services = ({ onNavigate }: ServicesProps) => {
             Booking systems and websites with customer relationship management (CRM) are the main offer.
             Cybersecurity, IT support, and automation are available as separate work.
           </p>
+          <p className="mt-4 text-base leading-7">
+            <a href="/#demo" className="font-semibold text-[#7dd3f5] underline-offset-4 hover:underline">
+              Watch the website and CRM demonstration
+            </a>
+          </p>
         </div>
 
         <div className="mt-12 grid grid-cols-1 gap-6 lg:grid-cols-2">
