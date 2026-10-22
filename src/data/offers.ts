@@ -172,12 +172,12 @@ export const scopeFaqs = [
 
 export const gettingStartedSteps = [
   {
-    title: 'Discuss your business and confirm the scope.',
-    detail: 'We talk through how customers book today and which package matches that work.',
+    title: 'Choose a package and continue to checkout.',
+    detail: `The booking setup is ${bookingPackage.priceDisplay}. The website with booking and CRM is ${websiteCrmPackage.priceDisplay}. Contact us first if the published scope does not fit.`,
   },
   {
-    title: 'Provide services, availability, branding, and authorized access.',
-    detail: 'Website customers also provide photos and wording.',
+    title: 'Send the business name and project requirements after payment is confirmed.',
+    detail: 'Website customers also provide photos, wording, services, and availability.',
   },
   {
     title: 'Review the configured setup.',

@@ -48,14 +48,14 @@ export const PackageSection = ({ onNavigate }: PackageSectionProps) => {
             </ul>
             <p className="mt-6 text-base leading-7 text-slate-200">{bookingPackage.kickoffNote}</p>
             <div className="mt-8 flex flex-col gap-3">
+              <TestCheckoutLink packageId={bookingPackage.id} className={buttonClass} />
               <button
                 type="button"
-                className={buttonClass}
+                className={testCheckoutClass}
                 onClick={() => onNavigate(contactPath(bookingPackage.id))}
               >
                 {bookingPackage.cta}
               </button>
-              <TestCheckoutLink packageId={bookingPackage.id} className={testCheckoutClass} />
             </div>
           </article>
 
@@ -82,14 +82,14 @@ export const PackageSection = ({ onNavigate }: PackageSectionProps) => {
               {websiteCrmPackage.limits}
             </p>
             <div className="mt-8 flex flex-col gap-3">
+              <TestCheckoutLink packageId={websiteCrmPackage.id} className={buttonClass} />
               <button
                 type="button"
-                className={buttonClass}
+                className={testCheckoutClass}
                 onClick={() => onNavigate(contactPath(websiteCrmPackage.id))}
               >
                 {websiteCrmPackage.cta}
               </button>
-              <TestCheckoutLink packageId={websiteCrmPackage.id} className={testCheckoutClass} />
             </div>
           </article>
         </div>

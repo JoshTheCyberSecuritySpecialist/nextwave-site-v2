@@ -151,19 +151,25 @@ export const HomeSections = ({ onNavigate }: HomeSectionsProps) => {
             ))}
           </div>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <a
+              href="#packages"
+              className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[#2283B8] px-5 py-3 text-base font-semibold text-white hover:bg-[#1b6d99] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+            >
+              Compare packages
+            </a>
+            <button
+              type="button"
+              onClick={() => onNavigate('contact')}
+              className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[#2BB0E8] px-5 py-3 text-base font-semibold text-white hover:bg-[#2283B8]/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+            >
+              Discuss Your Business
+            </button>
             <button
               type="button"
               onClick={() => onNavigate('portfolio')}
               className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[#2BB0E8] px-5 py-3 text-base font-semibold text-white hover:bg-[#2283B8]/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
             >
               View project work
-            </button>
-            <button
-              type="button"
-              onClick={() => onNavigate('contact')}
-              className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[#2283B8] px-5 py-3 text-base font-semibold text-white hover:bg-[#1b6d99] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-            >
-              Discuss Your Business
             </button>
           </div>
         </div>

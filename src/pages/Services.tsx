@@ -38,10 +38,10 @@ export const Services = ({ onNavigate }: ServicesProps) => {
             </ul>
             <p className="mt-6 text-base leading-7 text-slate-200">{bookingPackage.kickoffNote}</p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <button type="button" className={primaryButton} onClick={() => onNavigate(contactPath(bookingPackage.id))}>
+              <TestCheckoutLink packageId={bookingPackage.id} className={primaryButton} />
+              <button type="button" className={secondaryButton} onClick={() => onNavigate(contactPath(bookingPackage.id))}>
                 {bookingPackage.cta}
               </button>
-              <TestCheckoutLink packageId={bookingPackage.id} className={secondaryButton} />
               <button type="button" className={secondaryButton} onClick={() => onNavigate('/#packages')}>
                 Compare packages
               </button>
@@ -62,10 +62,10 @@ export const Services = ({ onNavigate }: ServicesProps) => {
               {websiteCrmPackage.limits}
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <button type="button" className={primaryButton} onClick={() => onNavigate(contactPath(websiteCrmPackage.id))}>
+              <TestCheckoutLink packageId={websiteCrmPackage.id} className={primaryButton} />
+              <button type="button" className={secondaryButton} onClick={() => onNavigate(contactPath(websiteCrmPackage.id))}>
                 {websiteCrmPackage.cta}
               </button>
-              <TestCheckoutLink packageId={websiteCrmPackage.id} className={secondaryButton} />
               <button type="button" className={secondaryButton} onClick={() => onNavigate('web-development')}>
                 Website details
               </button>

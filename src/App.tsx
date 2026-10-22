@@ -67,7 +67,14 @@ function AppRoutes() {
     <>
       <ScrollToTop />
       <Routes>
-        <Route path="/checkout/*" element={<Checkout />} />
+        <Route
+          path="/checkout/*"
+          element={
+            <MainLayout currentPage="services" onNavigate={handleNavigate}>
+              <Checkout />
+            </MainLayout>
+          }
+        />
         {/* Redirect /home → / */}
         <Route path="/home" element={<Navigate to="/" replace />} />
 

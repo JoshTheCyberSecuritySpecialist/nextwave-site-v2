@@ -65,7 +65,7 @@ export const Navbar = ({ currentPage, onNavigate }: NavbarProps) => {
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              onClick={() => handleNavigate('contact')}
+              onClick={() => handleNavigate('services')}
               className="px-6 py-2 bg-gradient-to-r from-[#2283B8] to-[#2BB0E8] text-white rounded-lg font-medium hover:shadow-lg hover:shadow-[#2283B8]/50 transition-shadow"
             >
               Get Started
@@ -108,7 +108,7 @@ export const Navbar = ({ currentPage, onNavigate }: NavbarProps) => {
                 </button>
               ))}
               <button
-                onClick={() => handleNavigate('contact')}
+                onClick={() => handleNavigate('services')}
                 className="w-full px-6 py-3 bg-gradient-to-r from-[#2283B8] to-[#2BB0E8] text-white rounded-lg font-medium"
               >
                 Get Started

@@ -56,17 +56,17 @@ export const WebDevelopment = ({ onNavigate }: WebDevelopmentProps) => {
             Packages customize an existing design and supported system configuration. More than five pages, a custom web application, SMS, payment collection, and other bespoke development need a separate quote.
           </p>
           <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+            <TestCheckoutLink
+              packageId={websiteCrmPackage.id}
+              className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[#2283B8] px-5 py-3 text-base font-semibold text-white hover:bg-[#1b6d99] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+            />
             <button
               type="button"
               onClick={() => onNavigate(contactPath(websiteCrmPackage.id))}
-              className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[#2283B8] px-5 py-3 text-base font-semibold text-white hover:bg-[#1b6d99] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+              className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[#2BB0E8] px-5 py-3 text-base font-semibold text-white hover:bg-[#2283B8]/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
             >
               {websiteCrmPackage.cta}
             </button>
-            <TestCheckoutLink
-              packageId={websiteCrmPackage.id}
-              className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[#2BB0E8] px-5 py-3 text-base font-semibold text-white hover:bg-[#2283B8]/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-            />
             <button
               type="button"
               onClick={() => onNavigate('/#packages')}
