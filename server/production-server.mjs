@@ -1,6 +1,6 @@
 import { createServer } from 'node:http';
 import { pathToFileURL } from 'node:url';
-import { createStripe, createStripePayments, createSupabaseDb, LOCAL_DEV_ORIGINS, PRODUCTION_WEB_ORIGINS, assertStripeKeyMatchesMode } from './stripe-payments.mjs';
+import { createStripe, createStripePayments, createSupabaseDb, LOCAL_DEV_ORIGINS, PRODUCTION_WEB_ORIGINS, assertStripeKeyMatchesMode, isAllowedPreviewOrigin } from './stripe-payments.mjs';
 
 export const REQUIRED_PRODUCTION_ENV = Object.freeze([
   'STRIPE_SECRET_KEY',
@@ -75,7 +75,8 @@ export function productionServer({ payments, env = process.env }) {
     };
     if (!hostAllowed(req.headers.host, env)) return reply(403, { error: 'Host rejected' });
     const originHeader = req.headers.origin;
-    if (Array.isArray(originHeader) || (typeof originHeader === 'string' && !corsOrigins.includes(originHeader))) {
+    const previewAllowed = production && typeof originHeader === 'string' && isAllowedPreviewOrigin(originHeader);
+    if (Array.isArray(originHeader) || (typeof originHeader === 'string' && !corsOrigins.includes(originHeader) && !previewAllowed)) {
       req.resume();
       return reply(403, { error: 'Origin rejected' });
     }
@@ -121,7 +122,7 @@ export function productionServer({ payments, env = process.env }) {
       } else if (req.method === 'POST' && pathname === '/api/checkout') {
         const input = JSON.parse(raw.toString('utf8'));
         if (!input || typeof input !== 'object' || Array.isArray(input)) throw Error('Invalid checkout');
-        result = await payments.checkout({ packageId: input.packageId, email: input.email, requestId: input.requestId });
+        result = await payments.checkout({ packageId: input.packageId, email: input.email, requestId: input.requestId, browserOrigin: originHeader });
       } else {
         const match = /^\/api\/orders\/([a-zA-Z0-9-]{1,80})(\/intake)?$/.exec(pathname);
         if (match && req.method === 'GET' && !match[2]) result = await payments.status(match[1], token);

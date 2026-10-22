@@ -25,11 +25,16 @@ function readStoredOrder(): Order | undefined {
 }
 
 async function request(path: string, body?: object, credential?: string) {
-  const response = await fetch(apiUrl(path, apiEnv), {
-    method: body ? 'POST' : 'GET',
-    headers: { Accept: 'application/json', 'Content-Type': 'application/json', ...(credential ? { Authorization: `Bearer ${credential}` } : {}) },
-    ...(body ? { body: JSON.stringify(body) } : {}),
-  });
+  let response: Response;
+  try {
+    response = await fetch(apiUrl(path, apiEnv), {
+      method: body ? 'POST' : 'GET',
+      headers: { Accept: 'application/json', 'Content-Type': 'application/json', ...(credential ? { Authorization: `Bearer ${credential}` } : {}) },
+      ...(body ? { body: JSON.stringify(body) } : {}),
+    });
+  } catch {
+    throw Error('Could not reach the payment API from this website.');
+  }
   const data = await response.json().catch(() => null) as ApiResult | null;
   if (!response.ok || !data || typeof data !== 'object') throw Error(data?.error || 'Request failed');
   return data;

@@ -4,6 +4,14 @@ import { packages, verify } from './payments.mjs';
 const hash = value => createHash('sha256').update(value).digest('hex');
 export const LOCAL_DEV_ORIGINS = Object.freeze(['http://127.0.0.1:5173', 'http://localhost:5173']);
 export const PRODUCTION_WEB_ORIGINS = Object.freeze(['https://nextwavedigitalsolution.com', 'https://www.nextwavedigitalsolution.com']);
+const PREVIEW_HOST = /^nextwave-site-v2(?:-[a-z0-9-]{1,80})?\.vercel\.app$/;
+export function isAllowedPreviewOrigin(origin) {
+  if (typeof origin !== 'string' || origin.length > 200) return false;
+  let url;
+  try { url = new URL(origin); } catch { return false; }
+  if (url.origin !== origin || url.protocol !== 'https:' || url.username || url.password || url.port || url.pathname !== '/' || url.search || url.hash) return false;
+  return PREVIEW_HOST.test(url.hostname);
+}
 export function testOnly(env = process.env) {
   if (env.NODE_ENV === 'production') throw Error('Test backend forbidden in production');
 }
@@ -110,7 +118,7 @@ export function createStripePayments({ stripe, db, webhookSecret, tokenSecret, o
   return {
     origin,
     corsOrigins,
-    async checkout({ packageId, email, requestId }) {
+    async checkout({ packageId, email, requestId, browserOrigin }) {
       if (!Object.hasOwn(packages, packageId) || typeof email !== 'string' || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
           !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(requestId ?? '')) throw Error('Invalid checkout');
       email = email.trim().toLowerCase();
@@ -119,7 +127,8 @@ export function createStripePayments({ stripe, db, webhookSecret, tokenSecret, o
       if (order.packageId !== packageId || order.email !== email || order.amount !== packages[packageId] || order.currency !== 'usd' || !/^[a-zA-Z0-9-]{1,80}$/.test(order.id ?? '')) throw Error('Invalid reservation');
       const age = Date.now() - Date.parse(prepared.created_at);
       if (!order.sessionId && (!Number.isFinite(age) || age < -60000 || age > 23 * 3600000)) throw Error('Checkout requires operator reconciliation');
-      const session = order.sessionId ? await stripe.retrieve(order.sessionId) : await stripe.create(order, origin);
+      const returnTo = typeof browserOrigin === 'string' && (browserOrigin === origin || PRODUCTION_WEB_ORIGINS.includes(browserOrigin) || (production && env.NODE_ENV === 'production' && isAllowedPreviewOrigin(browserOrigin))) ? browserOrigin : origin;
+      const session = order.sessionId ? await stripe.retrieve(order.sessionId) : await stripe.create(order, returnTo);
       match(session, { ...order, sessionId: session.id });
       const checkoutUrl = new URL(session.url);
       if (checkoutUrl.origin !== 'https://checkout.stripe.com' || checkoutUrl.username || checkoutUrl.password) throw Error('Unsafe checkout redirect');

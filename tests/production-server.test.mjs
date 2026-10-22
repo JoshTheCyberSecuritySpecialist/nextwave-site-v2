@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { createStripe, createStripePayments, createSupabaseDb } from '../server/stripe-payments.mjs';
+import { createStripe, createStripePayments, createSupabaseDb, isAllowedPreviewOrigin } from '../server/stripe-payments.mjs';
 import { sign } from '../server/payments.mjs';
 import { createProductionApp, listenTarget, productionServer, readProductionConfig, REQUIRED_PRODUCTION_ENV } from '../server/production-server.mjs';
 
@@ -170,6 +170,18 @@ test('health, CORS, mock route, and raw webhook body', async () => {
     assert.equal(checkouts, 0);
     response = await fetch(`${base}/api/checkout`, { method: 'POST', body: '{}' });
     assert.equal(response.status, 403);
+    assert.equal(isAllowedPreviewOrigin('https://nextwave-site-v2-czwn5yacr.vercel.app'), true);
+    assert.equal(isAllowedPreviewOrigin('https://nextwave-site-v2.vercel.app'), true);
+    assert.equal(isAllowedPreviewOrigin('https://evil.vercel.app'), false);
+    assert.equal(isAllowedPreviewOrigin('https://nextwave-site-v2-czwn5yacr.vercel.app.evil.example'), false);
+    assert.equal(isAllowedPreviewOrigin('http://nextwave-site-v2.vercel.app'), false);
+    const preview = 'https://nextwave-site-v2-czwn5yacr.vercel.app';
+    response = await fetch(`${base}/api/checkout`, { method: 'OPTIONS', headers: { Origin: preview, 'Access-Control-Request-Headers': 'content-type' } });
+    assert.equal(response.status, 204);
+    assert.equal(response.headers.get('access-control-allow-origin'), preview);
+    response = await fetch(`${base}/api/checkout`, { method: 'OPTIONS', headers: { Origin: 'https://evil.vercel.app', 'Access-Control-Request-Headers': 'content-type' } });
+    assert.equal(response.status, 403);
+    assert.equal(response.headers.get('access-control-allow-origin'), null);
   });
 
   let databaseCalls = 0;
