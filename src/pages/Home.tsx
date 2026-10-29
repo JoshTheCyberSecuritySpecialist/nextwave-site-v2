@@ -1,5 +1,6 @@
 import { Hero } from '../components/Hero';
 import { HomeSections } from '../components/HomeSections';
+import { PackagePreview } from '../components/PackagePreview';
 import { PackageSection } from '../components/PackageSection';
 import { ProductDemo } from '../components/ProductDemo';
 
@@ -17,6 +18,7 @@ export const Home = ({ onNavigate }: HomeProps) => {
         </div>
       </section>
       <PackageSection onNavigate={onNavigate} />
+      <PackagePreview />
       <HomeSections onNavigate={onNavigate} />
     </div>
   );
