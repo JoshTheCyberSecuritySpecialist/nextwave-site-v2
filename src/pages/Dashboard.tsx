@@ -170,6 +170,9 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('all');
+  const [workspace, setWorkspace] = useState<{ organizationId: string; duplicate: boolean; invitationToken: string | null; packageId: string | null; status: string } | null>(null);
+  const [workspaceError, setWorkspaceError] = useState('');
+  const [workspaceBusy, setWorkspaceBusy] = useState(false);
   const detailId = location.pathname.match(/^\/admin\/orders\/([0-9a-f-]{36})$/i)?.[1] ?? '';
   const view = detailId ? 'detail' : location.pathname === '/admin/orders' ? 'orders' : location.pathname === '/admin/intakes' ? 'intakes' : location.pathname === '/admin/settings' ? 'settings' : 'overview';
   const allowed = user?.email?.toLowerCase() === ADMIN_EMAIL;
@@ -200,6 +203,40 @@ export default function Dashboard() {
     void run();
     return () => { stopped = true; };
   }, [allowed, session?.access_token, view, detailId]);
+
+  useEffect(() => {
+    setWorkspace(null);
+    setWorkspaceError('');
+  }, [detailId]);
+
+  async function postWorkspace(path: string, body: Record<string, string>) {
+    if (!session?.access_token) return;
+    setWorkspaceBusy(true);
+    setWorkspaceError('');
+    try {
+      const response = await fetch(apiUrl(path, apiEnv), {
+        method: 'POST',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify(body),
+      });
+      const payload = await response.json().catch(() => null) as { error?: string; organizationId?: string; duplicate?: boolean; invitationToken?: string | null; packageId?: string | null; status?: string } | null;
+      if (!response.ok || !payload?.organizationId || !/^[0-9a-f-]{36}$/i.test(payload.organizationId)) {
+        throw Error(payload?.error || 'The workspace could not be updated.');
+      }
+      const invitationToken = typeof payload.invitationToken === 'string' && /^[a-f0-9]{64}$/.test(payload.invitationToken) ? payload.invitationToken : null;
+      setWorkspace({
+        organizationId: payload.organizationId,
+        duplicate: payload.duplicate === true,
+        invitationToken,
+        packageId: typeof payload.packageId === 'string' ? payload.packageId : null,
+        status: typeof payload.status === 'string' ? payload.status : '',
+      });
+    } catch (reason) {
+      setWorkspaceError(reason instanceof Error ? reason.message : 'The workspace could not be updated.');
+    } finally {
+      setWorkspaceBusy(false);
+    }
+  }
 
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -279,6 +316,28 @@ export default function Dashboard() {
             <div><dt className="text-sm text-gray-400">Project</dt><dd>{detail.projectId ? `${detail.projectId} · ${detail.projectStatus || 'status unavailable'}` : 'No project stored for this order'}</dd></div>
             <div><dt className="text-sm text-gray-400">Customer reference</dt><dd>{detail.customerReference || 'No external customer reference stored'}</dd></div>
           </dl>
+          <section className="mt-8 rounded-xl border border-gray-800 bg-[#0d1424] p-5">
+            <h2 className="text-xl font-semibold">Workspace</h2>
+            {paidStatuses.has(detail.status) ? (
+              <>
+                <p className="mt-2 text-gray-300">Provisioning uses this stored order. It does not start a new checkout and it does not email the customer.</p>
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <button type="button" disabled={workspaceBusy} className="min-h-11 rounded-lg bg-[#2283B8] px-4 font-semibold disabled:opacity-50" onClick={() => { void postWorkspace('/api/admin/organizations', { orderId: detail.id }); }}>Provision workspace</button>
+                  {workspace && <button type="button" disabled={workspaceBusy} className="min-h-11 rounded-lg border border-gray-700 px-4 disabled:opacity-50" onClick={() => { void postWorkspace(`/api/admin/organizations/${workspace.organizationId}/invitation`, {}); }}>Replace invitation</button>}
+                  {workspace && <button type="button" disabled={workspaceBusy} className="min-h-11 rounded-lg border border-gray-700 px-4 disabled:opacity-50" onClick={() => { void postWorkspace(`/api/admin/organizations/${workspace.organizationId}/status`, { status: workspace.status === 'suspended' ? 'active' : 'suspended' }); }}>{workspace.status === 'suspended' ? 'Restore access' : 'Suspend access'}</button>}
+                </div>
+              </>
+            ) : <p className="mt-2 text-gray-300">This order is not paid, so it cannot be provisioned.</p>}
+            {workspaceError && <p role="alert" className="mt-4 text-red-200">{workspaceError}</p>}
+            {workspace && <p className="mt-4 text-gray-200">{workspace.duplicate ? 'This order already has a workspace.' : 'Workspace saved.'} Reference {workspace.organizationId}.</p>}
+            {workspace?.invitationToken && (
+              <div className="mt-4">
+                <label htmlFor="invitation-code" className="block text-sm text-gray-300">Invitation code</label>
+                <input id="invitation-code" readOnly value={workspace.invitationToken} className="mt-2 min-h-11 w-full rounded-lg border border-gray-700 bg-[#0A0F1E] px-3 font-mono text-sm" />
+                <p className="mt-2 text-sm text-gray-400">Copy this code now. It is not stored in the browser and will not be shown again. No email is sent.</p>
+              </div>
+            )}
+          </section>
         </section>
       )}
     </Shell>

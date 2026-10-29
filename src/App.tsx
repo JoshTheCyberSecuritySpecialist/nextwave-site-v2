@@ -28,10 +28,13 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import BlogAdmin from "./pages/BlogAdmin";
 import Checkout from "./pages/Checkout";
+import CrmLogin from "./pages/CrmLogin";
+import CrmWorkspace from "./pages/CrmWorkspace";
 
 /* Auth */
 import { AuthProvider } from "./contexts/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
+import CrmProtectedRoute from "./components/CrmProtectedRoute";
 
 /* Scroll to top on route change */
 function ScrollToTop() {
@@ -181,6 +184,8 @@ function AppRoutes() {
 
         {/* Auth */}
         <Route path="/login" element={<Login />} />
+        <Route path="/crm/login" element={<CrmLogin />} />
+        <Route path="/crm" element={<CrmProtectedRoute><CrmWorkspace /></CrmProtectedRoute>} />
 
         {/* Protected */}
         <Route

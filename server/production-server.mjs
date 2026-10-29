@@ -2,6 +2,7 @@ import { createServer } from 'node:http';
 import { pathToFileURL } from 'node:url';
 import { createAdminOrders } from './admin-orders.mjs';
 import { createBlogDrafts } from './blog-drafts.mjs';
+import { createCrmProvisioning } from './crm-provision.mjs';
 import { createStripe, createStripePayments, createSupabaseDb, LOCAL_DEV_ORIGINS, PRODUCTION_WEB_ORIGINS, assertStripeKeyMatchesMode, isAllowedPreviewOrigin } from './stripe-payments.mjs';
 
 export const REQUIRED_PRODUCTION_ENV = Object.freeze([
@@ -13,6 +14,22 @@ export const REQUIRED_PRODUCTION_ENV = Object.freeze([
   'APP_BASE_URL',
   'STRIPE_MODE',
 ]);
+
+function failCrm(reply, error, fallback) {
+  const message = error instanceof Error ? error.message : '';
+  if (message === 'Unauthorized') return reply(401, { error: 'Unauthorized' });
+  if (message === 'Not found') return reply(404, { error: 'Not found' });
+  if (message === 'Order is not paid') return reply(409, { error: 'Order is not paid' });
+  if (message === 'Invalid request') return reply(400, { error: 'Invalid request' });
+  if (message === 'Invitation unavailable') return reply(400, { error: 'The invitation could not be accepted.' });
+  if (message === 'Invitation closed') return reply(409, { error: 'This invitation can no longer be replaced.' });
+  return reply(503, { error: fallback });
+}
+
+function readJwt(header) {
+  const jwt = typeof header === 'string' && header.startsWith('Bearer ') ? header.slice('Bearer '.length) : '';
+  return /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(jwt) ? jwt : '';
+}
 
 function rejectBrowserSecrets(env) {
   for (const name of Object.keys(env)) {
@@ -56,7 +73,7 @@ function hostAllowed(host, env) {
   return /^(127\.0\.0\.1|localhost)(?::\d{1,5})?$/.test(host);
 }
 
-export function productionServer({ payments, admin, drafts, env = process.env }) {
+export function productionServer({ payments, admin, drafts, provisioning, env = process.env }) {
   const corsOrigins = Array.isArray(payments.corsOrigins) && payments.corsOrigins.length ? payments.corsOrigins : [payments.origin];
   if (corsOrigins.some(origin => typeof origin !== 'string' || origin === '*')) throw Error('Origin is not allowed');
   const production = env.NODE_ENV === 'production';
@@ -156,6 +173,39 @@ export function productionServer({ payments, admin, drafts, env = process.env })
         }
         return reply(200, result);
       }
+      const orgPath = /^\/api\/admin\/organizations(?:\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/(invitation|status))?$/i.exec(pathname);
+      if (orgPath && req.method === 'POST') {
+        if (!provisioning) return reply(404, { error: 'Not found' });
+        const jwt = readJwt(req.headers.authorization);
+        if (!jwt) return reply(401, { error: 'Unauthorized' });
+        let input = {};
+        if (raw.length) {
+          try { input = JSON.parse(raw.toString('utf8')); } catch { return reply(400, { error: 'Invalid request' }); }
+        }
+        if (!input || typeof input !== 'object' || Array.isArray(input)) return reply(400, { error: 'Invalid request' });
+        try {
+          if (!orgPath[1]) result = await provisioning.provision(jwt, input.orderId);
+          else if (orgPath[2].toLowerCase() === 'invitation') result = await provisioning.reissue(jwt, orgPath[1]);
+          else result = await provisioning.setStatus(jwt, orgPath[1], input.status);
+        } catch (error) {
+          return failCrm(reply, error, 'The workspace could not be updated.');
+        }
+        return reply(200, result);
+      }
+      if (req.method === 'POST' && pathname === '/api/crm/invitations/accept') {
+        if (!provisioning) return reply(404, { error: 'Not found' });
+        const jwt = readJwt(req.headers.authorization);
+        if (!jwt) return reply(401, { error: 'Unauthorized' });
+        let input;
+        try { input = JSON.parse(raw.toString('utf8')); } catch { return reply(400, { error: 'Invalid request' }); }
+        if (!input || typeof input !== 'object' || Array.isArray(input)) return reply(400, { error: 'Invalid request' });
+        try {
+          result = await provisioning.accept(jwt, input.token);
+        } catch (error) {
+          return failCrm(reply, error, 'The invitation could not be accepted.');
+        }
+        return reply(200, result);
+      }
       if (webhook) {
         if (typeof req.headers['stripe-signature'] !== 'string') throw Error('Invalid webhook signature');
         result = await payments.webhook(raw, req.headers['stripe-signature']);
@@ -195,11 +245,12 @@ export function createProductionApp(env = process.env) {
   const db = createSupabaseDb({ url: env.SUPABASE_URL, serviceKey: env.SUPABASE_SERVICE_ROLE_KEY, env, production: true });
   const admin = createAdminOrders({ url: env.SUPABASE_URL, serviceKey: env.SUPABASE_SERVICE_ROLE_KEY });
   const drafts = createBlogDrafts({ url: env.SUPABASE_URL, serviceKey: env.SUPABASE_SERVICE_ROLE_KEY, apiKey: env.GEMINI_API_KEY, model: env.GEMINI_MODEL });
+  const provisioning = createCrmProvisioning({ url: env.SUPABASE_URL, serviceKey: env.SUPABASE_SERVICE_ROLE_KEY });
   const payments = createStripePayments({
     stripe, db, webhookSecret: env.STRIPE_WEBHOOK_SECRET, tokenSecret: env.PAYMENT_TOKEN_SECRET,
     origin: config.origin, env, production: true, livemode: config.livemode,
   });
-  return productionServer({ payments, admin, drafts, env });
+  return productionServer({ payments, admin, drafts, provisioning, env });
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
