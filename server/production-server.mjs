@@ -1,6 +1,7 @@
 import { createServer } from 'node:http';
 import { pathToFileURL } from 'node:url';
 import { createAdminOrders } from './admin-orders.mjs';
+import { createBlogDrafts } from './blog-drafts.mjs';
 import { createStripe, createStripePayments, createSupabaseDb, LOCAL_DEV_ORIGINS, PRODUCTION_WEB_ORIGINS, assertStripeKeyMatchesMode, isAllowedPreviewOrigin } from './stripe-payments.mjs';
 
 export const REQUIRED_PRODUCTION_ENV = Object.freeze([
@@ -16,7 +17,7 @@ export const REQUIRED_PRODUCTION_ENV = Object.freeze([
 function rejectBrowserSecrets(env) {
   for (const name of Object.keys(env)) {
     if (!name.startsWith('VITE_') || !env[name]) continue;
-    if (/SECRET|SERVICE_ROLE|WEBHOOK|TOKEN/i.test(name)) throw Error('Server secrets must not be placed in browser environment variables');
+    if (/SECRET|SERVICE_ROLE|WEBHOOK|TOKEN|GEMINI_API_KEY/i.test(name)) throw Error('Server secrets must not be placed in browser environment variables');
   }
   if (env.VITE_SUPABASE_ANON_KEY && env.VITE_SUPABASE_ANON_KEY === env.SUPABASE_SERVICE_ROLE_KEY) throw Error('Supabase service key must not be the browser anon key');
 }
@@ -55,7 +56,7 @@ function hostAllowed(host, env) {
   return /^(127\.0\.0\.1|localhost)(?::\d{1,5})?$/.test(host);
 }
 
-export function productionServer({ payments, admin, env = process.env }) {
+export function productionServer({ payments, admin, drafts, env = process.env }) {
   const corsOrigins = Array.isArray(payments.corsOrigins) && payments.corsOrigins.length ? payments.corsOrigins : [payments.origin];
   if (corsOrigins.some(origin => typeof origin !== 'string' || origin === '*')) throw Error('Origin is not allowed');
   const production = env.NODE_ENV === 'production';
@@ -134,6 +135,27 @@ export function productionServer({ payments, admin, env = process.env }) {
         }
         return reply(200, result);
       }
+      if (req.method === 'POST' && pathname === '/api/admin/blog-drafts') {
+        if (!drafts) return reply(404, { error: 'Not found' });
+        const jwt = typeof req.headers.authorization === 'string' && req.headers.authorization.startsWith('Bearer ')
+          ? req.headers.authorization.slice('Bearer '.length)
+          : '';
+        if (!/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(jwt)) return reply(401, { error: 'Unauthorized' });
+        let input;
+        try { input = JSON.parse(raw.toString('utf8')); } catch { return reply(400, { error: 'Invalid draft request' }); }
+        try {
+          result = await drafts.create(jwt, input);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : '';
+          if (message === 'Unauthorized') return reply(401, { error: 'Unauthorized' });
+          if (message === 'Invalid draft request') return reply(400, { error: 'Invalid draft request' });
+          if (message === 'AI drafting is not configured.') return reply(503, { error: 'AI drafting is not configured.' });
+          if (message === 'Invalid Gemini model') return reply(503, { error: 'Invalid Gemini model' });
+          if (message === 'Generation limit reached' || message === 'Gemini rate limit reached' || message === 'Invalid generated content' || message === 'Gemini request failed') return reply(502, { error: message });
+          return reply(503, { error: 'The draft could not be saved.' });
+        }
+        return reply(200, result);
+      }
       if (webhook) {
         if (typeof req.headers['stripe-signature'] !== 'string') throw Error('Invalid webhook signature');
         result = await payments.webhook(raw, req.headers['stripe-signature']);
@@ -155,7 +177,7 @@ export function productionServer({ payments, admin, env = process.env }) {
       reply(webhook ? 503 : 400, { error: 'Request rejected; retry with the same request ID.' });
     }
   });
-  server.requestTimeout = 20000;
+  server.requestTimeout = 90000;
   server.headersTimeout = 10000;
   const listen = server.listen.bind(server);
   server.listen = (port = 8788, host = production ? '0.0.0.0' : '127.0.0.1', ...args) => {
@@ -172,11 +194,12 @@ export function createProductionApp(env = process.env) {
   const stripe = createStripe({ secretKey: env.STRIPE_SECRET_KEY, env, production: true, livemode: config.livemode });
   const db = createSupabaseDb({ url: env.SUPABASE_URL, serviceKey: env.SUPABASE_SERVICE_ROLE_KEY, env, production: true });
   const admin = createAdminOrders({ url: env.SUPABASE_URL, serviceKey: env.SUPABASE_SERVICE_ROLE_KEY });
+  const drafts = createBlogDrafts({ url: env.SUPABASE_URL, serviceKey: env.SUPABASE_SERVICE_ROLE_KEY, apiKey: env.GEMINI_API_KEY, model: env.GEMINI_MODEL });
   const payments = createStripePayments({
     stripe, db, webhookSecret: env.STRIPE_WEBHOOK_SECRET, tokenSecret: env.PAYMENT_TOKEN_SECRET,
     origin: config.origin, env, production: true, livemode: config.livemode,
   });
-  return productionServer({ payments, admin, env });
+  return productionServer({ payments, admin, drafts, env });
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

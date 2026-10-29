@@ -103,6 +103,11 @@ test('startup fails closed without echoing credential values', () => {
     assert.equal(error.message.includes(plantedKey), false);
     return true;
   });
+  assert.throws(() => readProductionConfig(productionEnv({ VITE_GEMINI_API_KEY: 'gemini-key-not-for-browser' })), error => {
+    assert.match(error.message, /browser environment variables/);
+    assert.equal(error.message.includes('gemini-key-not-for-browser'), false);
+    return true;
+  });
   const local = readProductionConfig({ ...productionEnv({ NODE_ENV: 'development', APP_BASE_URL: 'http://127.0.0.1:5173', SUPABASE_URL: 'http://127.0.0.1:54321' }) });
   assert.equal(local.origin, 'http://127.0.0.1:5173');
   assert.equal(local.livemode, false);

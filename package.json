@@ -15,6 +15,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.app.json"
   },
   "dependencies": {
+    "@google/genai": "^2.31.0",
     "@supabase/supabase-js": "^2.57.4",
     "framer-motion": "^12.23.25",
     "lucide-react": "^0.344.0",

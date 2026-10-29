@@ -1,5 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, FormEvent } from 'react';
 import { supabase, BlogPost } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
+import { apiUrl } from '../lib/payments-client.mjs';
 import { Plus, CreditCard as Edit2, Trash2, Save, X } from 'lucide-react';
 
 interface PostForm {
@@ -15,10 +17,15 @@ interface PostForm {
 }
 
 export default function BlogAdmin() {
+  const { session } = useAuth();
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [showGenerate, setShowGenerate] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState('');
+  const [generateNotice, setGenerateNotice] = useState('');
   const [formData, setFormData] = useState<PostForm>({
     title: '',
     slug: '',
@@ -163,6 +170,53 @@ export default function BlogAdmin() {
     }
   };
 
+  const generateDraft = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (generating) return;
+    const data = new FormData(event.currentTarget);
+    setGenerating(true);
+    setGenerateError('');
+    setGenerateNotice('');
+    try {
+      const token = session?.access_token;
+      if (!token) throw Error('You are not authorized to generate a draft.');
+      const response = await fetch(apiUrl('/api/admin/blog-drafts', { dev: import.meta.env.DEV, configured: import.meta.env.VITE_API_BASE_URL }), {
+        method: 'POST',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          topic: data.get('topic'),
+          keywords: data.get('keywords'),
+          audience: data.get('audience'),
+          category: data.get('category'),
+          length: data.get('length'),
+          requestId: crypto.randomUUID(),
+        }),
+      });
+      const body = await response.json().catch(() => null) as { error?: string; id?: string; title?: string; slug?: string; excerpt?: string; content?: string; category?: string; author?: string; status?: 'draft'; readTime?: number } | null;
+      if (!response.ok || !body?.id || body.status !== 'draft') throw Error(body?.error || 'The draft could not be saved.');
+      setFormData({
+        title: body.title || '',
+        slug: body.slug || '',
+        excerpt: body.excerpt || '',
+        content: body.content || '',
+        category: body.category || 'Web Development',
+        author: body.author || 'NextWave Team',
+        read_time: body.readTime || 5,
+        featured_image: '',
+        status: 'draft',
+      });
+      setEditingId(body.id);
+      setShowGenerate(false);
+      setShowForm(true);
+      setGenerateNotice('Draft saved. Review it, then publish it yourself when it is ready.');
+      await loadPosts();
+    } catch (reason) {
+      setGenerateError(reason instanceof Error ? reason.message : 'The draft could not be saved.');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   const resetForm = () => {
     setFormData({
       title: '',
@@ -184,6 +238,14 @@ export default function BlogAdmin() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-4xl font-bold text-white">Blog Admin</h1>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <button
+            type="button"
+            onClick={() => { setShowGenerate(true); setGenerateError(''); }}
+            className="px-6 py-3 border border-[#2BB0E8] text-white rounded-lg hover:bg-[#2283B8]/20 transition-colors"
+          >
+            Generate with AI
+          </button>
           <button
             onClick={() => setShowForm(true)}
             className="flex items-center gap-2 px-6 py-3 bg-[#2283B8] text-white rounded-lg hover:bg-[#1a6a94] transition-colors"
@@ -192,6 +254,47 @@ export default function BlogAdmin() {
             New Post
           </button>
         </div>
+        </div>
+
+        {generateNotice && <p className="mb-6 text-[#7dd3f5]">{generateNotice}</p>}
+
+        {showGenerate && (
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
+            <div className="bg-[#0d1424] rounded-xl p-8 max-w-xl w-full">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-white">Generate a draft</h2>
+                <button type="button" onClick={() => setShowGenerate(false)} className="text-gray-400 hover:text-white" disabled={generating}><X className="w-6 h-6" /></button>
+              </div>
+              <form onSubmit={event => { void generateDraft(event); }} className="space-y-4">
+                <label className="block text-sm text-gray-300">Blog topic
+                  <input name="topic" required minLength={8} maxLength={200} className="mt-2 w-full px-4 py-2 bg-[#0A0F1E] border border-gray-700 rounded-lg text-white" />
+                </label>
+                <label className="block text-sm text-gray-300">Target keywords
+                  <input name="keywords" maxLength={200} className="mt-2 w-full px-4 py-2 bg-[#0A0F1E] border border-gray-700 rounded-lg text-white" />
+                </label>
+                <label className="block text-sm text-gray-300">Category
+                  <select name="category" defaultValue="Web Development" className="mt-2 w-full px-4 py-2 bg-[#0A0F1E] border border-gray-700 rounded-lg text-white">
+                    {categories.map(category => <option key={category}>{category}</option>)}
+                  </select>
+                </label>
+                <label className="block text-sm text-gray-300">Target audience
+                  <input name="audience" maxLength={160} className="mt-2 w-full px-4 py-2 bg-[#0A0F1E] border border-gray-700 rounded-lg text-white" />
+                </label>
+                <label className="block text-sm text-gray-300">Article length
+                  <select name="length" defaultValue="standard" className="mt-2 w-full px-4 py-2 bg-[#0A0F1E] border border-gray-700 rounded-lg text-white">
+                    <option value="short">Short</option>
+                    <option value="standard">Standard</option>
+                    <option value="long">Long</option>
+                  </select>
+                </label>
+                {generateError && <p role="alert" className="text-red-200">{generateError}</p>}
+                <button type="submit" disabled={generating} className="w-full px-6 py-3 bg-[#2283B8] text-white rounded-lg disabled:opacity-60">
+                  {generating ? 'Generating draft…' : 'Generate Draft'}
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
 
         {showForm && (
           <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
