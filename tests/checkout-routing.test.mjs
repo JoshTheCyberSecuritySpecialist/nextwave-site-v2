@@ -58,7 +58,8 @@ test('checkout page follows only Stripe test sessions', async () => {
   assert.match(source, /result\.mode !== 'stripe-test'/);
   assert.match(source, /checkout\.stripe\.com/);
   assert.match(source, /live-blocked/);
-  assert.match(source, /A redirect is not proof of payment/);
+  assert.match(source, /Stripe test mode is on, so this card is not charged/);
+  assert.equal(source.includes('A redirect is not proof of payment'), false);
   assert.match(source, /\/api\/orders\//);
   assert.match(source, /packageId, email, requestId/);
   assert.equal(source.includes('amount:'), false);

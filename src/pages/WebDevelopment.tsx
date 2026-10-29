@@ -60,7 +60,7 @@ export const WebDevelopment = ({ onNavigate }: WebDevelopmentProps) => {
           <p className="mt-4 text-base leading-7 text-slate-200">
             Packages customize an existing design and supported system configuration. More than five pages, a custom web application, SMS, payment collection, and other bespoke development need a separate quote.
           </p>
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+          <div className="mt-6 flex flex-col gap-3">
             <TestCheckoutLink
               packageId={websiteCrmPackage.id}
               className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[#2283B8] px-5 py-3 text-base font-semibold text-white hover:bg-[#1b6d99] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"

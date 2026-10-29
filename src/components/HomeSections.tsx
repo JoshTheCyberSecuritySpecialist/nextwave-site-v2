@@ -1,4 +1,3 @@
-import { WorkflowIllustration } from './WorkflowIllustration';
 import { additionalServices, gettingStartedSteps, scopeFaqs } from '../data/offers';
 
 const relationshipExamples = [
@@ -52,9 +51,6 @@ export const HomeSections = ({ onNavigate }: HomeSectionsProps) => {
               The website + CRM package gives you a place to keep customer details and handle the next conversation yourself.
               Follow-up tasks and individual email conversations are included. This is not automated marketing, bulk messaging, or automatic replies.
             </p>
-          </div>
-          <div className="mt-10">
-            <WorkflowIllustration />
           </div>
           <div className="mt-10 grid grid-cols-1 gap-4 md:grid-cols-2">
             {relationshipExamples.map((item) => (

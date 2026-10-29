@@ -29,7 +29,7 @@ export const Services = ({ onNavigate }: ServicesProps) => {
         </div>
 
         <div className="mt-12 grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <article className="flex min-w-0 flex-col rounded-2xl border border-[#2283B8]/35 bg-[#001F33]/75 p-6 sm:p-8">
+          <article className="flex h-full min-w-0 flex-col rounded-2xl border border-[#2283B8]/35 bg-[#001F33]/75 p-6 sm:p-8">
             <h2 className="text-2xl font-bold text-white">{bookingPackage.name}</h2>
             <p className="mt-4 text-4xl font-bold text-white">{bookingPackage.priceDisplay}</p>
             <p className="mt-4 text-base leading-7 text-slate-100">{bookingPackage.scopeNote}</p>
@@ -42,7 +42,7 @@ export const Services = ({ onNavigate }: ServicesProps) => {
               ))}
             </ul>
             <p className="mt-6 text-base leading-7 text-slate-200">{bookingPackage.kickoffNote}</p>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <div className="mt-auto flex flex-col gap-3 pt-8">
               <TestCheckoutLink packageId={bookingPackage.id} className={primaryButton} />
               <button type="button" className={secondaryButton} onClick={() => onNavigate(contactPath(bookingPackage.id))}>
                 {bookingPackage.cta}
@@ -53,10 +53,10 @@ export const Services = ({ onNavigate }: ServicesProps) => {
             </div>
           </article>
 
-          <article className="flex min-w-0 flex-col rounded-2xl border border-[#2283B8]/35 bg-[#001F33]/75 p-6 sm:p-8">
+          <article className="flex h-full min-w-0 flex-col rounded-2xl border border-[#2283B8]/35 bg-[#001F33]/75 p-6 sm:p-8">
             <h2 className="text-2xl font-bold text-white">{websiteCrmPackage.name}</h2>
             <p className="mt-4 text-4xl font-bold text-white">{websiteCrmPackage.priceDisplay}</p>
-            <div className="mt-4 space-y-3 rounded-lg border border-[#2BB0E8]/50 bg-[#003B5C] p-4 text-base leading-7 text-slate-100">
+            <div className="mt-4 space-y-3 text-base leading-7 text-slate-200">
               <p>{websiteCrmPackage.hostingIntro}</p>
               <p className="font-semibold text-white">{websiteCrmPackage.hostingThen}</p>
               <p>{websiteCrmPackage.monthlyIncludes}</p>
@@ -66,7 +66,7 @@ export const Services = ({ onNavigate }: ServicesProps) => {
               <span className="font-semibold text-white">Package limits. </span>
               {websiteCrmPackage.limits}
             </p>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <div className="mt-auto flex flex-col gap-3 pt-8">
               <TestCheckoutLink packageId={websiteCrmPackage.id} className={primaryButton} />
               <button type="button" className={secondaryButton} onClick={() => onNavigate(contactPath(websiteCrmPackage.id))}>
                 {websiteCrmPackage.cta}
@@ -87,7 +87,7 @@ export const Services = ({ onNavigate }: ServicesProps) => {
           </p>
           <div className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-3">
             {additionalServices.map((service) => (
-              <article key={service.id} className="flex min-w-0 flex-col rounded-2xl border border-[#2283B8]/30 bg-[#001F33]/70 p-6">
+              <article key={service.id} className="flex h-full min-w-0 flex-col rounded-2xl border border-[#2283B8]/30 bg-[#001F33]/70 p-6">
                 <h3 className="text-xl font-semibold text-white">{service.title}</h3>
                 <p className="mt-3 flex-1 text-base leading-7 text-slate-200">{service.summary}</p>
                 <div className="mt-6 flex flex-col gap-3">

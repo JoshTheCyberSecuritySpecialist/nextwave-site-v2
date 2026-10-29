@@ -10,8 +10,12 @@ interface HomeProps {
 export const Home = ({ onNavigate }: HomeProps) => {
   return (
     <div className="overflow-x-clip">
-      <Hero onNavigate={onNavigate} />
-      <ProductDemo />
+      <section className="px-4 pb-8 pt-28 sm:px-6 sm:pt-32 lg:px-8">
+        <div className="mx-auto flex max-w-7xl flex-col items-center gap-10 lg:flex-row lg:items-center">
+          <Hero onNavigate={onNavigate} />
+          <ProductDemo />
+        </div>
+      </section>
       <PackageSection onNavigate={onNavigate} />
       <HomeSections onNavigate={onNavigate} />
     </div>

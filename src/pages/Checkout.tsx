@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { bookingPackage, websiteCrmPackage } from '../data/offers';
 import { apiUrl, checkoutAvailability, checkoutIsShown, checkoutPath, checkoutPhase } from '../lib/payments-client.mjs';
 
@@ -41,17 +41,17 @@ async function request(path: string, body?: object, credential?: string) {
 }
 
 function statusCopy(status: string, phase: string) {
-  if (status === 'paid' || status === 'intake_received' || status === 'fulfilled') return 'Server confirmed this test payment.';
-  if (status === 'failed') return 'Server confirmed the payment failed.';
-  if (status === 'expired') return 'Server confirmed the checkout session expired. No payment was recorded.';
-  if (status === 'refunded') return 'Server confirmed this payment was refunded.';
+  if (status === 'paid') return 'Payment is confirmed.';
+  if (status === 'intake_received' || status === 'fulfilled') return 'Project details received.';
+  if (status === 'failed') return 'The payment failed.';
+  if (status === 'expired') return 'The checkout session expired. No payment was recorded.';
+  if (status === 'refunded') return 'This payment was refunded.';
   if (phase === 'cancel') return 'You left checkout. No charge has been confirmed.';
   return 'Payment is not confirmed yet.';
 }
 
 export default function Checkout() {
   const location = useLocation();
-  const navigate = useNavigate();
   const phase = checkoutPhase(location.pathname);
   const requested = new URLSearchParams(location.search).get('package');
   const returnOrderId = new URLSearchParams(location.search).get('order');
@@ -164,13 +164,27 @@ export default function Checkout() {
     }
   }
 
-  const step = phase === 'review' ? 1 : status === 'paid' || status === 'intake_received' ? 3 : 2;
-  const steps = ['Package', 'Payment', 'Details'];
+  const step = phase === 'review' ? 1 : status === 'paid' || status === 'intake_received' || status === 'fulfilled' ? 3 : 2;
+  const steps = ['Review', 'Stripe', 'Project details'];
+  const otherPackage = selected?.id === websiteCrmPackage.id ? bookingPackage : websiteCrmPackage;
+  const returnHeading = phase === 'cancel'
+    ? 'Checkout canceled'
+    : status === 'paid'
+      ? 'Payment confirmed'
+      : status === 'intake_received' || status === 'fulfilled'
+        ? 'Project details received'
+        : !status || status === 'pending'
+          ? 'Confirming payment'
+          : 'Payment status';
 
   return <div className="overflow-x-clip px-4 pb-16 pt-28 sm:px-6 sm:pt-32 lg:px-8">
     <div className="mx-auto max-w-5xl">
-      <p className="text-sm font-semibold uppercase tracking-wide text-[#7dd3f5]">Booking</p>
-      <ol className="mt-6 grid grid-cols-3 gap-2 text-sm sm:gap-4">
+      <div className="flex items-center justify-between gap-4">
+        <p className="text-sm font-semibold uppercase tracking-wide text-[#7dd3f5]">Booking</p>
+        <Link to="/services" className="text-sm font-semibold text-[#7dd3f5] underline-offset-4 hover:underline">Back to services</Link>
+      </div>
+      <p className="mt-6 text-sm font-semibold text-white sm:hidden">Step {step} of 3 · {steps[step - 1]}</p>
+      <ol className="mt-6 hidden grid-cols-3 gap-4 text-sm sm:grid">
         {steps.map((label, index) => {
           const number = index + 1;
           const current = number === step;
@@ -181,68 +195,61 @@ export default function Checkout() {
           </li>;
         })}
       </ol>
-      <div className="mt-6">
-        <Link to="/services" className="text-base text-[#7dd3f5] underline">Back to services</Link>
-      </div>
-      {availability === 'live-blocked' && <p className="mt-8 text-lg leading-8">Live checkout is not enabled. Real charges stay off until a verified Stripe test payment is confirmed.</p>}
+      {availability === 'live-blocked' && <p className="mt-8 text-lg leading-8">Live checkout is not enabled. Stripe test mode is the only checkout available.</p>}
       {enabled && phase === 'review' && <section className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-5">
         <div className="lg:col-span-3">
           <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">{selected ? selected.name : 'Choose a package'}</h1>
-          <p className="mt-4 text-base leading-7 text-slate-200">No recurring hosting plan is enrolled in this payment. Real charges stay off until a verified test payment is confirmed.</p>
-          {!selected && <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+          <p className="mt-4 text-base leading-7 text-slate-200">Stripe test mode is on, so this card is not charged. No recurring hosting plan is enrolled in this payment.</p>
+          {!selected && <div className="mt-6 flex flex-col gap-3">
             <Link className={buttonClass} to={checkoutPath(bookingPackage.id)}>{bookingPackage.name}</Link>
             <Link className={buttonClass} to={checkoutPath(websiteCrmPackage.id)}>{websiteCrmPackage.name}</Link>
           </div>}
-          {selected && <div className="mt-6 rounded-2xl border border-[#2283B8]/35 bg-[#001F33]/75 p-6 sm:p-8">
+          {selected && <div className="mt-6 rounded-2xl bg-[#001F33]/75 p-6 sm:p-8">
             <p className="text-4xl font-bold text-white">{selected.priceDisplay}</p>
-            <p className="mt-4 text-base leading-7 text-slate-200">The server charges the catalog price for this package. This page sends the package id, email, and request id only.</p>
+            <p className="mt-3 text-sm">
+              <Link className="font-semibold text-[#7dd3f5] underline-offset-4 hover:underline" to={checkoutPath(otherPackage.id)}>Change to {otherPackage.name}</Link>
+            </p>
             <ul className="mt-6 space-y-3 text-base leading-7 text-slate-100">
               {selected.includes.map(item => <li key={item} className="flex gap-3"><span aria-hidden="true" className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#2BB0E8]" /><span>{item}</span></li>)}
             </ul>
-            {selected.id === websiteCrmPackage.id && <div className="mt-6 space-y-3 rounded-lg border border-[#2BB0E8]/50 bg-[#003B5C] p-4 text-base leading-7 text-slate-100">
+            {selected.id === websiteCrmPackage.id && <div className="mt-6 space-y-3 text-base leading-7 text-slate-100">
               <p>{websiteCrmPackage.hostingIntro}</p>
               <p className="font-semibold text-white">{websiteCrmPackage.hostingThen}</p>
               <p>{websiteCrmPackage.billingNote}</p>
             </div>}
           </div>}
         </div>
-        {selected && <form className="h-fit space-y-4 rounded-2xl border border-[#2283B8]/35 bg-[#001F33]/75 p-6 sm:p-8 lg:col-span-2" onSubmit={event => { void startCheckout(event); }}>
-          <h2 className="text-xl font-bold text-white">Your details</h2>
-          <p className="text-base leading-7 text-slate-200">After Stripe, this site checks the server for payment status. Intake opens only after the server reports the order as paid.</p>
-          <label className="block text-slate-100">Package
-            <select className={fieldClass} name="packageId" value={selected.id} onChange={event => { navigate(checkoutPath(event.target.value)); }}>
-              <option value={bookingPackage.id}>{bookingPackage.name} — {bookingPackage.priceDisplay}</option>
-              <option value={websiteCrmPackage.id}>{websiteCrmPackage.name} — {websiteCrmPackage.priceDisplay}</option>
-            </select>
-          </label>
-          <label className="block text-slate-100">Email
+        {selected && <form className="h-fit space-y-4 rounded-2xl bg-[#001F33]/75 p-6 sm:p-8 lg:col-span-2" onSubmit={event => { void startCheckout(event); }}>
+          <h2 className="text-xl font-bold text-white">Your email</h2>
+          <p className="text-base leading-7 text-slate-200">You will return here after Stripe. Project details open once the payment is confirmed.</p>
+          <label className="block text-sm font-semibold text-slate-100">Email
             <input className={fieldClass} name="email" type="email" required maxLength={254} autoComplete="email" />
           </label>
           <button disabled={busy} className={`${buttonClass} w-full`}>Continue to secure checkout</button>
           <p className="text-sm leading-6 text-slate-300">Questions: <Link className="text-[#7dd3f5] underline" to="/contact">contact Next Wave</Link> or <a className="text-[#7dd3f5] underline" href="mailto:joshua@nextwavedigitalsolution.com">joshua@nextwavedigitalsolution.com</a>.</p>
         </form>}
       </section>}
-      {enabled && phase !== 'review' && <section className="mt-8 max-w-3xl space-y-6 rounded-2xl border border-[#2283B8]/35 bg-[#001F33]/75 p-6 sm:p-8">
-        <h1 className="text-3xl font-bold text-white sm:text-4xl">{phase === 'cancel' ? 'Checkout canceled' : !status || status === 'pending' ? 'Payment pending' : 'Payment status'}</h1>
-        {phase === 'cancel' && <p className="text-base leading-7 text-slate-200">You left Stripe Checkout. This page does not, by itself, mean a card was charged or declined.</p>}
-        {unmatched && <p role="status" className="text-base leading-7 text-slate-200">This browser does not have the checkout that matches the returned order. A redirect is not proof of payment.</p>}
+      {enabled && phase !== 'review' && <section className="mt-8 max-w-3xl space-y-6 rounded-2xl bg-[#001F33]/75 p-6 sm:p-8">
+        <h1 className="text-3xl font-bold text-white sm:text-4xl">{returnHeading}</h1>
+        {phase === 'cancel' && <p className="text-base leading-7 text-slate-200">You left Stripe Checkout. No charge has been confirmed.</p>}
+        {unmatched && <p role="status" className="text-base leading-7 text-slate-200">This browser does not have the checkout for this order. Start again from the package you chose.</p>}
         {order && <>
-          <p role="status" className="text-base leading-7 text-slate-100">{status ? statusCopy(status, phase) : 'Checking the server for this order.'} A redirect is not proof of payment.</p>
-          <p className="text-base text-slate-200">Order reference: {order.id}</p>
-          {purchased && <p className="text-base leading-7 text-slate-100">{purchased.name} — {purchased.priceDisplay}. The price shown is the catalog price for the package id returned by the server.</p>}
+          <p role="status" className="text-base leading-7 text-slate-100">{status ? statusCopy(status, phase) : 'Checking the server for this order.'}</p>
+          <p className="text-sm text-slate-400">Order reference: {order.id}</p>
+          {purchased && <p className="text-base leading-7 text-slate-100">{purchased.name} — {purchased.priceDisplay}</p>}
           {confirmedPackage && !purchased && <p className="text-base text-slate-100">The server returned an unrecognized package.</p>}
           {!terminalStatuses.has(status) && <button disabled={busy} className={buttonClass} onClick={() => setChecks(value => value + 1)}>Check payment status</button>}
           {status === 'paid' && <form className="space-y-4" onSubmit={event => { void submitIntake(event); }}>
-            <p className="text-base leading-7 text-slate-200">Payment is confirmed. Submit the project intake. Do not enter passwords or credentials.</p>
-            <label className="block text-slate-100">Business name
+            <p className="text-base leading-7 text-slate-200">Tell us the business name and what you need set up. Do not enter passwords or credentials.</p>
+            <label className="block text-sm font-semibold text-slate-100">Business name
               <input name="businessName" className={fieldClass} required maxLength={200} />
             </label>
-            <label className="block text-slate-100">Project requirements
+            <label className="block text-sm font-semibold text-slate-100">Project requirements
               <textarea name="requirements" className={fieldClass} required maxLength={4000} />
             </label>
-            <button disabled={busy} className={buttonClass}>Submit intake</button>
+            <button disabled={busy} className={buttonClass}>Submit project details</button>
           </form>}
-          {status === 'intake_received' && <p className="text-base leading-7 text-slate-200">Intake accepted. Delivery status must be checked separately; queued does not mean sent.</p>}
+          {status === 'intake_received' && <p className="text-base leading-7 text-slate-200">Project details received. We will use them to start the setup you purchased.</p>}
         </>}
       </section>}
       {error && <p role="alert" className="mt-6 text-red-200">{error}</p>}

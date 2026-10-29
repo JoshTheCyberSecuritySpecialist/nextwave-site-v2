@@ -1,5 +1,6 @@
 import { createServer } from 'node:http';
 import { pathToFileURL } from 'node:url';
+import { createAdminOrders } from './admin-orders.mjs';
 import { createStripe, createStripePayments, createSupabaseDb, LOCAL_DEV_ORIGINS, PRODUCTION_WEB_ORIGINS, assertStripeKeyMatchesMode, isAllowedPreviewOrigin } from './stripe-payments.mjs';
 
 export const REQUIRED_PRODUCTION_ENV = Object.freeze([
@@ -54,7 +55,7 @@ function hostAllowed(host, env) {
   return /^(127\.0\.0\.1|localhost)(?::\d{1,5})?$/.test(host);
 }
 
-export function productionServer({ payments, env = process.env }) {
+export function productionServer({ payments, admin, env = process.env }) {
   const corsOrigins = Array.isArray(payments.corsOrigins) && payments.corsOrigins.length ? payments.corsOrigins : [payments.origin];
   if (corsOrigins.some(origin => typeof origin !== 'string' || origin === '*')) throw Error('Origin is not allowed');
   const production = env.NODE_ENV === 'production';
@@ -116,6 +117,23 @@ export function productionServer({ payments, env = process.env }) {
       const raw = Buffer.concat(chunks);
       const token = /^Bearer ([a-f0-9]{64})$/.exec(req.headers.authorization ?? '')?.[1];
       let result;
+      const adminMatch = /^\/api\/admin\/orders(?:\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}))?$/i.exec(pathname);
+      if (adminMatch) {
+        if (!admin || req.method !== 'GET') return reply(404, { error: 'Not found' });
+        const jwt = typeof req.headers.authorization === 'string' && req.headers.authorization.startsWith('Bearer ')
+          ? req.headers.authorization.slice('Bearer '.length)
+          : '';
+        if (!/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(jwt)) return reply(401, { error: 'Unauthorized' });
+        try {
+          result = adminMatch[1] ? await admin.order(jwt, adminMatch[1]) : await admin.list(jwt);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : '';
+          if (message === 'Unauthorized') return reply(401, { error: 'Unauthorized' });
+          if (message === 'Not found') return reply(404, { error: 'Not found' });
+          return reply(503, { error: 'Orders are unavailable.' });
+        }
+        return reply(200, result);
+      }
       if (webhook) {
         if (typeof req.headers['stripe-signature'] !== 'string') throw Error('Invalid webhook signature');
         result = await payments.webhook(raw, req.headers['stripe-signature']);
@@ -153,11 +171,12 @@ export function createProductionApp(env = process.env) {
   const config = readProductionConfig(env);
   const stripe = createStripe({ secretKey: env.STRIPE_SECRET_KEY, env, production: true, livemode: config.livemode });
   const db = createSupabaseDb({ url: env.SUPABASE_URL, serviceKey: env.SUPABASE_SERVICE_ROLE_KEY, env, production: true });
+  const admin = createAdminOrders({ url: env.SUPABASE_URL, serviceKey: env.SUPABASE_SERVICE_ROLE_KEY });
   const payments = createStripePayments({
     stripe, db, webhookSecret: env.STRIPE_WEBHOOK_SECRET, tokenSecret: env.PAYMENT_TOKEN_SECRET,
     origin: config.origin, env, production: true, livemode: config.livemode,
   });
-  return productionServer({ payments, env });
+  return productionServer({ payments, admin, env });
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

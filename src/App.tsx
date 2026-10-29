@@ -184,7 +184,7 @@ function AppRoutes() {
 
         {/* Protected */}
         <Route
-          path="/admin"
+          path="/admin/*"
           element={
             <ProtectedRoute>
               <Dashboard />

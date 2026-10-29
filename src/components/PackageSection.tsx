@@ -35,9 +35,7 @@ export const PackageSection = ({ onNavigate }: PackageSectionProps) => {
             <p className="text-sm font-semibold uppercase tracking-wide text-[#7dd3f5]">Package 1</p>
             <h3 className="mt-3 text-2xl font-bold text-white">{bookingPackage.name}</h3>
             <p className="mt-4 text-4xl font-bold text-white">{bookingPackage.priceDisplay}</p>
-            <p className="mt-4 rounded-lg border border-[#2283B8]/40 bg-[#003B5C] p-4 text-base leading-7 text-slate-100">
-              {bookingPackage.scopeNote}
-            </p>
+            <p className="mt-4 text-base leading-7 text-slate-200">{bookingPackage.scopeNote}</p>
             <ul className={listClass}>
               {bookingPackage.includes.map((item) => (
                 <li key={item} className="flex gap-3">
@@ -47,7 +45,7 @@ export const PackageSection = ({ onNavigate }: PackageSectionProps) => {
               ))}
             </ul>
             <p className="mt-6 text-base leading-7 text-slate-200">{bookingPackage.kickoffNote}</p>
-            <div className="mt-8 flex flex-col gap-3">
+            <div className="mt-auto flex flex-col gap-3 pt-8">
               <TestCheckoutLink packageId={bookingPackage.id} className={buttonClass} />
               <button
                 type="button"
@@ -63,7 +61,7 @@ export const PackageSection = ({ onNavigate }: PackageSectionProps) => {
             <p className="text-sm font-semibold uppercase tracking-wide text-[#7dd3f5]">Package 2</p>
             <h3 className="mt-3 text-2xl font-bold text-white">{websiteCrmPackage.name}</h3>
             <p className="mt-4 text-4xl font-bold text-white">{websiteCrmPackage.priceDisplay}</p>
-            <div className="mt-4 space-y-3 rounded-lg border border-[#2BB0E8]/50 bg-[#003B5C] p-4 text-base leading-7 text-slate-100">
+            <div className="mt-4 space-y-3 text-base leading-7 text-slate-200">
               <p>{websiteCrmPackage.hostingIntro}</p>
               <p className="font-semibold text-white">{websiteCrmPackage.hostingThen}</p>
               <p>{websiteCrmPackage.monthlyIncludes}</p>
@@ -81,7 +79,7 @@ export const PackageSection = ({ onNavigate }: PackageSectionProps) => {
               <span className="font-semibold text-white">Package limits. </span>
               {websiteCrmPackage.limits}
             </p>
-            <div className="mt-8 flex flex-col gap-3">
+            <div className="mt-auto flex flex-col gap-3 pt-8">
               <TestCheckoutLink packageId={websiteCrmPackage.id} className={buttonClass} />
               <button
                 type="button"

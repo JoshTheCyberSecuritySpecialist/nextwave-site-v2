@@ -41,7 +41,7 @@ export const Navbar = ({ currentPage, onNavigate }: NavbarProps) => {
             />
           </button>
 
-          <div className="hidden md:flex items-center space-x-8">
+          <div className="hidden lg:flex items-center gap-6">
             {navItems.map((item) => (
               <button
                 key={item.path}
@@ -78,7 +78,7 @@ export const Navbar = ({ currentPage, onNavigate }: NavbarProps) => {
             aria-expanded={isOpen}
             aria-controls="mobile-navigation"
             aria-label={isOpen ? 'Close menu' : 'Open menu'}
-            className="md:hidden text-white p-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7dd3f5]"
+            className="lg:hidden text-white p-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7dd3f5]"
           >
             {isOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
@@ -91,7 +91,7 @@ export const Navbar = ({ currentPage, onNavigate }: NavbarProps) => {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="md:hidden bg-[#003B5C]/95 backdrop-blur-lg border-b border-[#2283B8]/20"
+            className="lg:hidden bg-[#003B5C]/95 backdrop-blur-lg border-b border-[#2283B8]/20"
           >
             <div id="mobile-navigation" className="px-4 py-6 space-y-4">
               {navItems.map((item) => (
