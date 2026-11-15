@@ -12,6 +12,12 @@ export type Workspace = {
   status: string;
 };
 
+export type CrmSelection = Workspace & {
+  crmEnabled: boolean;
+  maxCustomers: number;
+  maxServices: number | null;
+};
+
 type OrganizationRow = {
   id: string;
   name: string;
@@ -49,6 +55,16 @@ export async function loadWorkspaces(): Promise<Workspace[]> {
       status: organization.status,
     }];
   });
+}
+
+export async function loadEntitlements(organizationIds: string[]) {
+  if (organizationIds.length === 0) return [];
+  const { data, error } = await supabase
+    .from('organization_entitlements')
+    .select('organization_id, crm_enabled, max_customers, max_services')
+    .in('organization_id', organizationIds);
+  if (error) throw error;
+  return (data ?? []) as { organization_id: string; crm_enabled: boolean; max_customers: number; max_services: number | null }[];
 }
 
 export async function acceptInvitation(accessToken: string, token: string) {

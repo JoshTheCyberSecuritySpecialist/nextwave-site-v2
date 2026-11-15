@@ -173,7 +173,7 @@ function StarterPreview() {
         onSelectDay={chooseDay}
         onSelectTime={setSelectedTime}
       />
-      <div className="min-w-0 rounded-2xl border border-[#2283B8]/35 bg-[#003B5C]/80 p-4 sm:p-5" aria-live="polite">
+      <div className="min-w-0 rounded-2xl border border-[#2283B8]/35 bg-[#003B5C]/80 p-4 sm:p-5">
         <h4 className="text-lg font-semibold text-white">Details collected for this sample appointment</h4>
         <p className="mt-2 text-sm leading-6 text-slate-300">
           {bookingPackage.scopeNote} Selecting a time only changes this example.
@@ -184,13 +184,18 @@ function StarterPreview() {
             ['Phone', '(555) 010-0142'],
             ['Email', 'jordan.hale@example.com'],
             ['Service', 'Consultation'],
-            ['Requested time', `${dateLabel(selectedDay)} at ${selectedTime}`],
           ].map(([term, value]) => (
             <div key={term} className="grid grid-cols-1 gap-1 border-b border-[#2283B8]/20 pb-3 sm:grid-cols-[9rem_1fr]">
               <dt className="font-semibold text-[#7dd3f5]">{term}</dt>
               <dd className="min-w-0 break-words text-white">{value}</dd>
             </div>
           ))}
+          <div className="grid grid-cols-1 gap-1 border-b border-[#2283B8]/20 pb-3 sm:grid-cols-[9rem_1fr]" aria-live="polite">
+            <dt className="font-semibold text-[#7dd3f5]">Requested time</dt>
+            <dd className="min-w-0 break-words text-white">
+              {dateLabel(selectedDay)} at {selectedTime}
+            </dd>
+          </div>
         </dl>
       </div>
     </div>
@@ -251,9 +256,9 @@ function CrmPreview() {
           onSelectDay={chooseDay}
           onSelectTime={setSelectedTime}
         />
-        <article className="min-w-0 rounded-2xl border border-[#2283B8]/35 bg-[#003B5C]/80 p-4 sm:p-5" aria-live="polite">
+        <article className="min-w-0 rounded-2xl border border-[#2283B8]/35 bg-[#003B5C]/80 p-4 sm:p-5">
           <h4 className="text-lg font-semibold text-white">Sample customer record</h4>
-          <p className="mt-2 text-sm leading-6 text-slate-300">
+          <p className="mt-2 text-sm leading-6 text-slate-300" aria-live="polite">
             Selected sample time: {dateLabel(selectedDay)} at {selectedTime}. The record below stays the same fictional example.
           </p>
           <dl className="mt-5 space-y-3 text-base leading-7">
@@ -333,7 +338,7 @@ export function PackagePreview() {
           role="tablist"
           aria-label="Package demonstrations"
           aria-orientation="horizontal"
-          className="mt-8 flex flex-col gap-3 sm:flex-row"
+          className="mt-8 grid grid-cols-1 gap-3 lg:grid-cols-2"
         >
           {tabs.map((tab, index) => {
             const selected = activeTab === tab.id;
@@ -346,7 +351,7 @@ export function PackagePreview() {
                 aria-selected={selected}
                 aria-controls={`preview-panel-${tab.id}`}
                 tabIndex={selected ? 0 : -1}
-                className={`${tabButtonClass(selected)} w-full sm:w-auto`}
+                className={`${tabButtonClass(selected)} w-full`}
                 onClick={() => setActiveTab(tab.id)}
                 onKeyDown={(event) => onTabKeyDown(event, index)}
               >

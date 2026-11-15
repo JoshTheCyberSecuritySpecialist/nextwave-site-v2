@@ -29,7 +29,18 @@ import Dashboard from "./pages/Dashboard";
 import BlogAdmin from "./pages/BlogAdmin";
 import Checkout from "./pages/Checkout";
 import CrmLogin from "./pages/CrmLogin";
-import CrmWorkspace from "./pages/CrmWorkspace";
+import CrmLayout from "./components/CrmLayout";
+import CrmHome from "./pages/crm/CrmHome";
+import BusinessProfile from "./pages/crm/BusinessProfile";
+import ServiceList from "./pages/crm/ServiceList";
+import ServiceEditor from "./pages/crm/ServiceEditor";
+import WeeklyHours from "./pages/crm/WeeklyHours";
+import BookingPreview from "./pages/crm/BookingPreview";
+import Appointments from "./pages/crm/Appointments";
+import Book from "./pages/Book";
+import CustomerDirectory from "./pages/crm/CustomerDirectory";
+import CustomerDetail from "./pages/crm/CustomerDetail";
+import CustomerEditor from "./pages/crm/CustomerEditor";
 
 /* Auth */
 import { AuthProvider } from "./contexts/AuthContext";
@@ -184,8 +195,22 @@ function AppRoutes() {
 
         {/* Auth */}
         <Route path="/login" element={<Login />} />
+        <Route path="/book/:slug" element={<Book />} />
         <Route path="/crm/login" element={<CrmLogin />} />
-        <Route path="/crm" element={<CrmProtectedRoute><CrmWorkspace /></CrmProtectedRoute>} />
+        <Route path="/crm" element={<CrmProtectedRoute><CrmLayout /></CrmProtectedRoute>}>
+          <Route index element={<CrmHome />} />
+          <Route path="profile" element={<BusinessProfile />} />
+          <Route path="services" element={<ServiceList />} />
+          <Route path="services/new" element={<ServiceEditor />} />
+          <Route path="services/:serviceId/edit" element={<ServiceEditor />} />
+          <Route path="hours" element={<WeeklyHours />} />
+          <Route path="booking" element={<BookingPreview />} />
+          <Route path="appointments" element={<Appointments />} />
+          <Route path="customers" element={<CustomerDirectory />} />
+          <Route path="customers/new" element={<CustomerEditor />} />
+          <Route path="customers/:customerId" element={<CustomerDetail />} />
+          <Route path="customers/:customerId/edit" element={<CustomerEditor />} />
+        </Route>
 
         {/* Protected */}
         <Route
