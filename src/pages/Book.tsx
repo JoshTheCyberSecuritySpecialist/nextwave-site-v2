@@ -113,7 +113,11 @@ export default function Book() {
                 <p className="mt-2 text-gray-200">
                   {receipt.service_name} with {receipt.business_name} on {formatBookingTime(receipt.starts_at, receipt.timezone, { weekday: 'long', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' })}.
                 </p>
-                <p className="mt-3 text-sm text-gray-400">Save this confirmation. This page does not send an email.</p>
+                <p className="mt-3 text-sm text-gray-400">
+                  {receipt.confirmation_queued
+                    ? 'A confirmation email is queued for the address you entered. Keep this page until it arrives.'
+                    : 'Save this confirmation. This page does not send an email.'}
+                </p>
               </section>
             ) : (
               <>

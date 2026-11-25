@@ -34,6 +34,7 @@ export type BookingReceipt = {
   service_name: string;
   business_name: string;
   duplicate: boolean;
+  confirmation_queued?: boolean;
 };
 
 export type WorkspaceAppointment = {
