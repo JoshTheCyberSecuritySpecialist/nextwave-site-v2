@@ -4,6 +4,7 @@ import { createAdminOrders } from './admin-orders.mjs';
 import { createAdminMessages } from './admin-messages.mjs';
 import { createBlogDrafts } from './blog-drafts.mjs';
 import { createCrmProvisioning } from './crm-provision.mjs';
+import { createWebsiteGenerator } from './website-generator.mjs';
 import { createStripe, createStripePayments, createSupabaseDb, LOCAL_DEV_ORIGINS, PRODUCTION_WEB_ORIGINS, assertStripeKeyMatchesMode, isAllowedPreviewOrigin } from './stripe-payments.mjs';
 
 export const REQUIRED_PRODUCTION_ENV = Object.freeze([
@@ -37,6 +38,17 @@ function failCrm(reply, error, fallback) {
   if (message === 'Invitation closed') return reply(409, { error: 'This invitation can no longer be replaced.' });
   if (message === 'Invalid password') return reply(400, { error: 'Choose a password between 8 and 72 characters.' });
   if (message === 'Account setup failed') return reply(503, { error: 'Account setup failed.' });
+  if (message === 'Website generation is not included in this package.') return reply(403, { error: message });
+  if (message === 'Complete business intake before generating a website.') return reply(409, { error: message });
+  if (message === 'Generation limit reached') return reply(429, { error: message });
+  if (message === 'Generation already in progress') return reply(409, { error: message });
+  if (message === 'Draft changed during generation') return reply(409, { error: message });
+  if (message === 'Page limit exceeded') return reply(400, { error: message });
+  if (message === 'Invalid generation request') return reply(400, { error: message });
+  if (message === 'Website not found') return reply(404, { error: message });
+  if (message === 'Website generation is not configured.') return reply(503, { error: message });
+  if (message === 'Invalid generated content') return reply(502, { error: message });
+  if (message === 'Gemini rate limit reached' || message === 'Gemini request failed') return reply(502, { error: message });
   return reply(503, { error: fallback });
 }
 
@@ -87,7 +99,7 @@ function hostAllowed(host, env) {
   return /^(127\.0\.0\.1|localhost)(?::\d{1,5})?$/.test(host);
 }
 
-export function productionServer({ payments, admin, drafts, provisioning, messages, env = process.env }) {
+export function productionServer({ payments, admin, drafts, provisioning, messages, websites, env = process.env }) {
   const corsOrigins = Array.isArray(payments.corsOrigins) && payments.corsOrigins.length ? payments.corsOrigins : [payments.origin];
   if (corsOrigins.some(origin => typeof origin !== 'string' || origin === '*')) throw Error('Origin is not allowed');
   const production = env.NODE_ENV === 'production';
@@ -225,6 +237,28 @@ export function productionServer({ payments, admin, drafts, provisioning, messag
         }
         return reply(200, result);
       }
+      const websitePath = /^\/api\/crm\/organizations\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/website(?:\/(generate))?$/i.exec(pathname);
+      if (websitePath && websites) {
+        const jwt = readJwt(req.headers.authorization);
+        if (!jwt) return reply(401, { error: 'Unauthorized' });
+        try {
+          if (req.method === 'GET' && !websitePath[2]) {
+            result = await websites.status(jwt, websitePath[1]);
+          } else if (req.method === 'POST' && websitePath[2] === 'generate') {
+            let input = {};
+            if (raw.length) {
+              try { input = JSON.parse(raw.toString('utf8')); } catch { return reply(400, { error: 'Invalid generation request' }); }
+            }
+            if (!input || typeof input !== 'object' || Array.isArray(input)) return reply(400, { error: 'Invalid generation request' });
+            result = await websites.generate(jwt, websitePath[1], input);
+          } else {
+            return reply(404, { error: 'Not found' });
+          }
+        } catch (error) {
+          return failCrm(reply, error, 'Website generation is unavailable.');
+        }
+        return reply(200, result);
+      }
       if (req.method === 'POST' && pathname === '/api/crm/invitations/preview') {
         if (!provisioning?.previewInvitation) return reply(404, { error: 'Not found' });
         let input;
@@ -313,6 +347,13 @@ export function createProductionApp(env = process.env) {
     fromEmail: env.RESEND_FROM,
   });
   const drafts = createBlogDrafts({ url: env.SUPABASE_URL, serviceKey: env.SUPABASE_SERVICE_ROLE_KEY, apiKey: env.GEMINI_API_KEY, model: env.GEMINI_MODEL });
+  const websites = createWebsiteGenerator({
+    url: env.SUPABASE_URL,
+    serviceKey: env.SUPABASE_SERVICE_ROLE_KEY,
+    apiKey: env.GEMINI_API_KEY,
+    model: env.GEMINI_MODEL,
+    allowFixture: env.NODE_ENV !== 'production',
+  });
   const provisioning = createCrmProvisioning({
     url: env.SUPABASE_URL,
     serviceKey: env.SUPABASE_SERVICE_ROLE_KEY,
@@ -322,7 +363,7 @@ export function createProductionApp(env = process.env) {
     stripe, db, webhookSecret: env.STRIPE_WEBHOOK_SECRET, tokenSecret: env.PAYMENT_TOKEN_SECRET,
     origin: config.origin, env, production: true, livemode: false,
   });
-  return productionServer({ payments, admin, drafts, provisioning, messages, env });
+  return productionServer({ payments, admin, drafts, provisioning, messages, websites, env });
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

@@ -42,6 +42,8 @@ import Book from "./pages/Book";
 import CustomerDirectory from "./pages/crm/CustomerDirectory";
 import CustomerDetail from "./pages/crm/CustomerDetail";
 import CustomerEditor from "./pages/crm/CustomerEditor";
+import WebsiteStudio from "./pages/crm/WebsiteStudio";
+import WebsiteIntake from "./pages/crm/WebsiteIntake";
 
 /* Auth */
 import { AuthProvider } from "./contexts/AuthContext";
@@ -202,6 +204,8 @@ function AppRoutes() {
         <Route path="/crm" element={<CrmProtectedRoute><CrmLayout /></CrmProtectedRoute>}>
           <Route index element={<CrmHome />} />
           <Route path="profile" element={<BusinessProfile />} />
+          <Route path="website" element={<WebsiteStudio />} />
+          <Route path="website/intake" element={<WebsiteIntake />} />
           <Route path="services" element={<ServiceList />} />
           <Route path="services/new" element={<ServiceEditor />} />
           <Route path="services/:serviceId/edit" element={<ServiceEditor />} />

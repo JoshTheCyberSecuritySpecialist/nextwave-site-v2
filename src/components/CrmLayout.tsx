@@ -32,6 +32,7 @@ export default function CrmLayout() {
           maxCustomers: byId.get(row.organizationId)?.max_customers ?? 0,
           maxServices: byId.get(row.organizationId)?.max_services ?? null,
           maxPages: byId.get(row.organizationId)?.max_pages ?? 0,
+          maxGenerationRuns: byId.get(row.organizationId)?.max_generation_runs ?? 0,
         }));
         if (stopped) return;
         setWorkspaces(next);
@@ -98,10 +99,20 @@ export default function CrmLayout() {
             {selected && (
               <>
                 <li><NavLink to="/crm/profile" className={linkClass} onClick={() => setMenuOpen(false)}>Profile</NavLink></li>
-                <li><NavLink to="/crm/services" className={linkClass} onClick={() => setMenuOpen(false)}>Services</NavLink></li>
-                <li><NavLink to="/crm/hours" className={linkClass} onClick={() => setMenuOpen(false)}>Hours</NavLink></li>
-                <li><NavLink to="/crm/booking" className={linkClass} onClick={() => setMenuOpen(false)}>Booking page</NavLink></li>
-                <li><NavLink to="/crm/appointments" className={linkClass} onClick={() => setMenuOpen(false)}>Appointments</NavLink></li>
+                {selected.websiteEnabled && (
+                  <>
+                    <li><NavLink to="/crm/website" className={linkClass} onClick={() => setMenuOpen(false)}>Website</NavLink></li>
+                    <li><NavLink to="/crm/website/intake" className={linkClass} onClick={() => setMenuOpen(false)}>Website intake</NavLink></li>
+                  </>
+                )}
+                {(selected.crmEnabled || selected.packageId === 'booking-only') && (
+                  <>
+                    <li><NavLink to="/crm/services" className={linkClass} onClick={() => setMenuOpen(false)}>Services</NavLink></li>
+                    <li><NavLink to="/crm/hours" className={linkClass} onClick={() => setMenuOpen(false)}>Hours</NavLink></li>
+                    <li><NavLink to="/crm/booking" className={linkClass} onClick={() => setMenuOpen(false)}>Booking page</NavLink></li>
+                    <li><NavLink to="/crm/appointments" className={linkClass} onClick={() => setMenuOpen(false)}>Appointments</NavLink></li>
+                  </>
+                )}
               </>
             )}
             {selected?.crmEnabled && <li><NavLink to="/crm/customers" className={linkClass} onClick={() => setMenuOpen(false)}>Customers</NavLink></li>}

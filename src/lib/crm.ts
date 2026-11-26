@@ -18,6 +18,7 @@ export type CrmSelection = Workspace & {
   maxCustomers: number;
   maxServices: number | null;
   maxPages: number;
+  maxGenerationRuns: number;
 };
 
 type OrganizationRow = {
@@ -63,7 +64,7 @@ export async function loadEntitlements(organizationIds: string[]) {
   if (organizationIds.length === 0) return [];
   const { data, error } = await supabase
     .from('organization_entitlements')
-    .select('organization_id, crm_enabled, website_enabled, max_customers, max_services, max_pages')
+    .select('organization_id, crm_enabled, website_enabled, max_customers, max_services, max_pages, max_generation_runs')
     .in('organization_id', organizationIds);
   if (error) throw error;
   return (data ?? []) as {
@@ -73,6 +74,7 @@ export async function loadEntitlements(organizationIds: string[]) {
     max_customers: number;
     max_services: number | null;
     max_pages: number;
+    max_generation_runs: number;
   }[];
 }
 
