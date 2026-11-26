@@ -12,7 +12,7 @@ const SYSTEM = [
   'You generate structured website copy for a small business on the Next Wave platform.',
   'Return one JSON object only.',
   'Use only supported page types: home, about, services, contact.',
-  'Use only supported section types: hero, about, services_list, contact_cta, contact_form, hours, faq, text.',
+  'Use only supported section types: hero, about, services_list, contact_cta, contact_form, hours, faq, steps, text.',
   'Do not invent testimonials, awards, licenses, credentials, years in experience, prices, addresses, staff biographies, or customer counts.',
   'Do not include http or https links. CTA hrefs may be /, /about, /services, /contact, /book/{slug}, mailto:, or tel:.',
   'When a booking path is provided, prefer that path for the primary CTA and include a contact_form section on the contact page.',

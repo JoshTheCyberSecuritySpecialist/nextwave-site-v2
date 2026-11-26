@@ -103,7 +103,6 @@ export default function CrmLayout() {
                   <>
                     <li><NavLink to="/crm/website" className={linkClass} onClick={() => setMenuOpen(false)}>Website</NavLink></li>
                     <li><NavLink to="/crm/website/intake" className={linkClass} onClick={() => setMenuOpen(false)}>Website intake</NavLink></li>
-                    <li><NavLink to="/crm/website/edit" className={linkClass} onClick={() => setMenuOpen(false)}>Website editor</NavLink></li>
                     <li><NavLink to="/crm/website/preview" className={linkClass} onClick={() => setMenuOpen(false)}>Website preview</NavLink></li>
                     <li><NavLink to="/crm/inquiries" className={linkClass} onClick={() => setMenuOpen(false)}>Inquiries</NavLink></li>
                   </>

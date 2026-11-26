@@ -11,10 +11,11 @@ import {
   websiteError,
   type WebsiteStatus,
 } from '../../lib/crm-website';
-import { WebsiteRenderer, type WebsiteContent } from '../../components/website/WebsiteRenderer';
+import { SectionStudio } from '../../components/website/SectionStudio';
+import type { WebsiteContent } from '../../components/website/WebsiteRenderer';
 
 function newIdempotencyKey() {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) return `gen_${crypto.randomUUID().replaceAll('-', '').slice(0, 24)}`;
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) return `gen_${crypto.randomUUID().replace(/-/g, '').slice(0, 24)}`;
   return `gen_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
@@ -28,7 +29,6 @@ export default function WebsiteStudio() {
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
-  const [activeSlug, setActiveSlug] = useState('home');
   const [viewport, setViewport] = useState<'desktop' | 'mobile'>('desktop');
 
   async function refresh() {
@@ -64,7 +64,6 @@ export default function WebsiteStudio() {
       if (result.fixture) setNotice('Fixture draft saved for local testing. This is not live AI generation.');
       else if (result.duplicate) setNotice('Existing generation result reused.');
       else setNotice('Draft website generated and saved.');
-      setActiveSlug('home');
     } catch (reason) {
       setError(websiteError(reason, 'Website generation failed.'));
       try { await refresh(); } catch { /* keep original error */ }
@@ -129,7 +128,6 @@ export default function WebsiteStudio() {
         </div>
         <div className="flex flex-wrap gap-2">
           <Link to="/crm/website/intake" className="rounded-lg border border-gray-700 px-4 py-2 text-sm">Intake</Link>
-          <Link to="/crm/website/edit" className="rounded-lg border border-gray-700 px-4 py-2 text-sm">Editor</Link>
           <Link to="/crm/website/preview" className="rounded-lg border border-gray-700 px-4 py-2 text-sm">Private preview</Link>
         </div>
       </div>
@@ -169,7 +167,7 @@ export default function WebsiteStudio() {
           {busy === 'publish' ? 'Publishing…' : 'Publish draft'}
         </button>
         {!status?.intakeComplete && <p className="self-center text-sm text-amber-200">Finish website intake before generating.</p>}
-        {unfinished.length > 0 && <p className="self-center text-sm text-amber-200">Clear unfinished items in the editor before publishing.</p>}
+        {unfinished.length > 0 && <p className="self-center text-sm text-amber-200">Replace example text before publishing. The live site stays as it is until you publish.</p>}
       </div>
 
       {revisions.length > 0 && (
@@ -197,15 +195,21 @@ export default function WebsiteStudio() {
         </div>
       )}
 
-      {content && (
-        <div className="space-y-4">
-          <div className="flex flex-wrap gap-2">
-            <button type="button" className={`rounded-lg px-3 py-2 text-sm ${viewport === 'desktop' ? 'bg-[#2283B8]' : 'border border-gray-700'}`} onClick={() => setViewport('desktop')}>Desktop</button>
-            <button type="button" className={`rounded-lg px-3 py-2 text-sm ${viewport === 'mobile' ? 'bg-[#2283B8]' : 'border border-gray-700'}`} onClick={() => setViewport('mobile')}>Mobile</button>
-          </div>
-          <WebsiteRenderer content={content} activeSlug={activeSlug} onNavigate={setActiveSlug} viewport={viewport} />
-        </div>
-      )}
+      {content?.pages && content.pages.length > 0 && status?.draftRevision?.id && session?.access_token ? (
+        <SectionStudio
+          key={status.draftRevision.id}
+          accessToken={session.access_token}
+          organizationId={workspace.organizationId}
+          baseRevisionId={status.draftRevision.id}
+          initialContent={content}
+          viewport={viewport}
+          onViewport={setViewport}
+          onSaved={async () => {
+            setNotice('Draft saved. The public site stays on the last published version until you publish.');
+            await refresh();
+          }}
+        />
+      ) : null}
     </section>
   );
 }

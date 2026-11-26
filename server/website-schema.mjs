@@ -11,6 +11,7 @@ export const SECTION_TYPES = Object.freeze([
   'contact_form',
   'hours',
   'faq',
+  'steps',
   'text',
 ]);
 

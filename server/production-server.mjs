@@ -52,6 +52,7 @@ function failCrm(reply, error, fallback) {
   if (message === 'Invalid generated content') return reply(502, { error: message });
   if (message === 'Gemini rate limit reached' || message === 'Gemini request failed') return reply(502, { error: message });
   if (message === 'Website publishing is not included in this package.') return reply(403, { error: message });
+  if (message === 'Invalid website content') return reply(400, { error: 'This draft could not be saved. Check links and section text.' });
   if (message === 'Draft changed during edit') return reply(409, { error: message });
   if (message === 'Remove unfinished items before publishing.') return reply(409, { error: message });
   if (message === 'Revision is not publishable.') return reply(400, { error: message });

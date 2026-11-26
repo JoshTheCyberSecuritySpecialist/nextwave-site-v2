@@ -44,7 +44,7 @@ export default function WebsitePreview() {
           {slug && <p className="mt-1 text-sm text-gray-400">Future public path: /site/{slug}</p>}
         </div>
         <div className="flex flex-wrap gap-2">
-          <Link to="/crm/website/edit" className="rounded-lg border border-gray-700 px-4 py-2 text-sm">Edit</Link>
+          <Link to="/crm/website" className="rounded-lg border border-gray-700 px-4 py-2 text-sm">Edit in studio</Link>
           <Link to="/crm/website" className="rounded-lg border border-gray-700 px-4 py-2 text-sm">Studio</Link>
         </div>
       </div>
