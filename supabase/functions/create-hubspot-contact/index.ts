@@ -16,6 +16,58 @@ interface ContactData {
   message: string;
 }
 
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function inboxText(value: string | undefined, max: number): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.length > max) return null;
+  return trimmed;
+}
+
+async function rememberMessage(contactData: ContactData): Promise<void> {
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!supabaseUrl || !serviceKey) return;
+
+    const name = inboxText(contactData.name, 120);
+    const email = inboxText(contactData.email, 254)?.toLowerCase() ?? "";
+    const body = inboxText(contactData.message, 5000);
+    if (!name || !body || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return;
+
+    const phoneRaw = inboxText(contactData.phone, 20);
+    const phone = phoneRaw && /^[\d\s()+.-]{7,20}$/.test(phoneRaw) ? phoneRaw : null;
+    const response = await fetch(`${supabaseUrl.replace(/\/$/, "")}/rest/v1/site_messages`, {
+      method: "POST",
+      headers: {
+        apikey: serviceKey,
+        Authorization: `Bearer ${serviceKey}`,
+        "Content-Type": "application/json",
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify({
+        name,
+        email,
+        phone,
+        business_name: inboxText(contactData.businessName, 160),
+        service: inboxText(contactData.service, 160),
+        body,
+      }),
+    });
+    if (!response.ok) console.error("Contact message was not stored", response.status);
+  } catch {
+    console.error("Contact message was not stored");
+  }
+}
+
 async function sendEmailNotification(contactData: ContactData): Promise<void> {
   const resendApiKey = Deno.env.get("RESEND_API_KEY");
   const notificationEmail = Deno.env.get("NOTIFICATION_EMAIL");
@@ -39,16 +91,16 @@ async function sendEmailNotification(contactData: ContactData): Promise<void> {
       <h2 style="color: #2283B8;">New Website Lead</h2>
 
       <div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
-        <p><strong>Name:</strong> ${contactData.name}</p>
-        <p><strong>Email:</strong> ${contactData.email}</p>
-        <p><strong>Phone:</strong> ${phoneDisplay}</p>
-        <p><strong>Business Name:</strong> ${businessDisplay}</p>
-        <p><strong>Service Needed:</strong> ${serviceName}</p>
+        <p><strong>Name:</strong> ${escapeHtml(contactData.name)}</p>
+        <p><strong>Email:</strong> ${escapeHtml(contactData.email)}</p>
+        <p><strong>Phone:</strong> ${escapeHtml(phoneDisplay)}</p>
+        <p><strong>Business Name:</strong> ${escapeHtml(businessDisplay)}</p>
+        <p><strong>Service Needed:</strong> ${escapeHtml(serviceName)}</p>
       </div>
 
       <div style="margin: 20px 0;">
         <h3 style="color: #2283B8;">Message:</h3>
-        <p style="white-space: pre-wrap;">${contactData.message}</p>
+        <p style="white-space: pre-wrap;">${escapeHtml(contactData.message)}</p>
       </div>
     </div>
   `;
@@ -146,6 +198,7 @@ Deno.serve(async (req: Request) => {
 
         const updatedContact = await updateResponse.json();
 
+        await rememberMessage(contactData);
         await sendEmailNotification(contactData);
 
         return new Response(
@@ -168,6 +221,7 @@ Deno.serve(async (req: Request) => {
 
     const newContact = await hubspotResponse.json();
 
+    await rememberMessage(contactData);
     await sendEmailNotification(contactData);
 
     return new Response(

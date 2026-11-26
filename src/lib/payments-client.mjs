@@ -27,7 +27,7 @@ export function checkoutIsShown(mode) {
   return mode === 'test' || mode === 'disabled';
 }
 
-export const PURCHASABLE_PACKAGE_IDS = Object.freeze(['booking-only', 'website-crm']);
+export const PURCHASABLE_PACKAGE_IDS = Object.freeze(['business-website', 'website-crm']);
 
 export function checkoutPath(packageId) {
   if (!PURCHASABLE_PACKAGE_IDS.includes(packageId)) throw Error('Invalid package');

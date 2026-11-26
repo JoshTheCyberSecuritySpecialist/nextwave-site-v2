@@ -11,7 +11,7 @@ function fixture(t) {
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const file = join(dir, 'db.json'); const secret = 'local-fixture-only';
   const api = createPayments({ file, secret });
-  const order = api.checkout({ packageId: 'booking-only', email: 'buyer@example.test', requestId: 'fixture-request-0001' });
+  const order = api.checkout({ packageId: 'business-website', email: 'buyer@example.test', requestId: 'fixture-request-0001' });
   function event(overrides = {}, id = 'evt_1') { return JSON.stringify({ id, livemode: false, type: 'checkout.session.completed', data: { object: { id: order.sessionId, payment_status: 'paid', amount_total: 79900, currency: 'usd', metadata: { order_id: order.id }, ...overrides } } }); }
   return { api, order, file, secret, event };
 }
@@ -40,7 +40,7 @@ test('reject forged/stale signatures, mismatched amounts, unpaid and unauthorize
 });
 test('server price ownership, package allowlist and checkout retry', t => {
   const { api, order } = fixture(t);
-  assert.equal(api.checkout({ packageId: 'booking-only', email: 'buyer@example.test', requestId: 'fixture-request-0001', amount: 1 }).id, order.id);
+  assert.equal(api.checkout({ packageId: 'business-website', email: 'buyer@example.test', requestId: 'fixture-request-0001', amount: 1 }).id, order.id);
   assert.throws(() => api.checkout({ packageId: 'hosting', email: 'buyer@example.test', requestId: 'fixture-request-0002' }));
   assert.equal(api.checkout({ packageId: 'website-crm', email: 'buyer@example.test', requestId: 'fixture-request-0002' }).amount, 149900);
   assert.throws(() => api.checkout({ packageId: 'website-crm', email: 'buyer@example.test', requestId: 'fixture-request-0001' }));

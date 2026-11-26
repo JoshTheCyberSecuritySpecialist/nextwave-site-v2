@@ -3,7 +3,7 @@ import { checkoutAvailability, checkoutIsShown, checkoutPath } from '../lib/paym
 
 const availability = checkoutAvailability({ dev: import.meta.env.DEV, configured: import.meta.env.VITE_CHECKOUT_MODE });
 
-export function TestCheckoutLink({ packageId, className }: { packageId: 'booking-only' | 'website-crm'; className: string }) {
+export function TestCheckoutLink({ packageId, className }: { packageId: 'business-website' | 'website-crm'; className: string }) {
   if (!checkoutIsShown(availability)) return null;
   return <Link to={checkoutPath(packageId)} className={className}>Continue to checkout</Link>;
 }

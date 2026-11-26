@@ -66,8 +66,9 @@ test('checkout page follows only Stripe test sessions', async () => {
 });
 
 test('fixed-price cards link to test checkout and quote services stay on contact', async () => {
-  assert.equal(checkoutPath('booking-only'), '/checkout?package=booking-only');
+  assert.equal(checkoutPath('business-website'), '/checkout?package=business-website');
   assert.equal(checkoutPath('website-crm'), '/checkout?package=website-crm');
+  assert.throws(() => checkoutPath('booking-only'), /Invalid package/);
   assert.throws(() => checkoutPath('cybersecurity'), /Invalid package/);
   assert.equal(checkoutPhase('/checkout/success'), 'success');
   assert.equal(checkoutPhase('/checkout/cancel'), 'cancel');

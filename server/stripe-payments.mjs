@@ -1,5 +1,5 @@
 import { createHash, createHmac, randomBytes } from 'node:crypto';
-import { packages, verify } from './payments.mjs';
+import { allPackageAmounts, packages, verify } from './payments.mjs';
 
 const hash = value => createHash('sha256').update(value).digest('hex');
 export const LOCAL_DEV_ORIGINS = Object.freeze(['http://127.0.0.1:5173', 'http://localhost:5173']);
@@ -91,16 +91,18 @@ export function deriveIntakeToken(orderId, tokenSecret) {
 }
 
 export function createStripePayments({ stripe, db, webhookSecret, tokenSecret, origin = 'http://127.0.0.1:5173', env = process.env, production = false, livemode = false }) {
+  // Database payment RPCs still accept test sessions only. Refuse live Checkout creation
+  // even when STRIPE_MODE=live so unpaid live sessions cannot be opened ahead of a reviewed migration.
+  if (livemode) throw Error('Live Stripe checkout is disabled until payment RPCs accept livemode sessions');
   if (!production) {
     testOnly(env);
-    if (livemode) throw Error('Stripe live/test environment mismatch');
     if (!LOCAL_DEV_ORIGINS.includes(origin)) throw Error('Fixed local origin required');
   } else if (env.NODE_ENV === 'production') {
     if (!PRODUCTION_WEB_ORIGINS.includes(origin)) throw Error('Production website origin is not allowed');
   } else if (![...LOCAL_DEV_ORIGINS, ...PRODUCTION_WEB_ORIGINS].includes(origin)) throw Error('Origin is not allowed');
   if (typeof webhookSecret !== 'string' || !webhookSecret.startsWith('whsec_') || webhookSecret.length < 12) throw Error('Webhook secret required');
   deriveIntakeToken('configuration-check', tokenSecret);
-  const sessionPrefix = livemode ? 'cs_live_' : 'cs_test_';
+  const sessionPrefix = 'cs_test_';
   const corsOrigins = production && env.NODE_ENV === 'production' ? PRODUCTION_WEB_ORIGINS : [origin];
   async function authorized(id, token) {
     if (typeof id !== 'string' || !/^[a-zA-Z0-9-]{1,80}$/.test(id) || !/^[a-f0-9]{64}$/.test(token ?? '')) throw Error('Unauthorized');
@@ -109,11 +111,14 @@ export function createStripePayments({ stripe, db, webhookSecret, tokenSecret, o
     return order;
   }
   function match(session, order) {
-    if (session.livemode !== livemode || typeof session.id !== 'string' || !session.id.startsWith(sessionPrefix)) throw Error('Stripe live/test environment mismatch');
+    if (session.livemode !== false || typeof session.id !== 'string' || !session.id.startsWith(sessionPrefix)) throw Error('Stripe live/test environment mismatch');
     if (session.mode !== 'payment' || session.id !== order.sessionId ||
         session.metadata?.order_id !== order.id || session.client_reference_id !== order.id ||
         session.amount_total !== order.amount || session.currency !== 'usd' || order.currency !== 'usd' ||
-        !Object.hasOwn(packages, order.packageId) || order.amount !== packages[order.packageId]) throw Error('Payment mismatch');
+        !Object.hasOwn(allPackageAmounts, order.packageId) || order.amount !== allPackageAmounts[order.packageId]) throw Error('Payment mismatch');
+  }
+  function packageIdForAmount(amount) {
+    return Object.keys(allPackageAmounts).find(key => allPackageAmounts[key] === amount);
   }
   return {
     origin,
@@ -133,19 +138,34 @@ export function createStripePayments({ stripe, db, webhookSecret, tokenSecret, o
       const checkoutUrl = new URL(session.url);
       if (checkoutUrl.origin !== 'https://checkout.stripe.com' || checkoutUrl.username || checkoutUrl.password) throw Error('Unsafe checkout redirect');
       await db.rpc('p3_checkout_attach', { p_order_id: order.id, p_session_id: session.id, p_checkout_url: checkoutUrl.href, p_token_hash: hash(deriveIntakeToken(order.id, tokenSecret)) });
-      return { id: order.id, sessionId: session.id, url: checkoutUrl.href, token: deriveIntakeToken(order.id, tokenSecret), mode: livemode ? 'stripe-live' : 'stripe-test' };
+      return { id: order.id, sessionId: session.id, url: checkoutUrl.href, token: deriveIntakeToken(order.id, tokenSecret), mode: 'stripe-test' };
     },
     async webhook(raw, signature) {
       verify(raw, signature, webhookSecret);
       const event = JSON.parse(raw);
-      if (event.livemode !== livemode) throw Error('Stripe live/test environment mismatch');
+      if (event.livemode !== false) throw Error('Stripe live/test environment mismatch');
       if (!/^evt_[A-Za-z0-9_]+$/.test(event.id ?? '')) throw Error('Invalid test event');
+      if (event.type === 'charge.refunded') {
+        const charge = event.data?.object;
+        const paymentIntent = typeof charge?.payment_intent === 'string' ? charge.payment_intent : '';
+        const amountRefunded = Number(charge?.amount_refunded);
+        if (!/^pi_[A-Za-z0-9_]+$/.test(paymentIntent) || !Number.isInteger(amountRefunded) || amountRefunded < 0) throw Error('Invalid refund charge');
+        return db.rpc('p3_refund_event', {
+          p_event_id: event.id,
+          p_event_type: event.type,
+          p_payment_intent_id: paymentIntent,
+          p_amount_refunded: amountRefunded,
+          p_currency: charge.currency,
+          p_livemode: false,
+          p_payload_fingerprint: hash(raw),
+        });
+      }
       const types = { 'checkout.session.completed': 'completed', 'checkout.session.async_payment_succeeded': 'completed', 'checkout.session.async_payment_failed': 'failed', 'checkout.session.expired': 'expired' };
       if (!Object.hasOwn(types, event.type)) return { ignored: true };
       const incoming = event.data?.object;
       const session = await stripe.retrieve(incoming?.id);
       // DB validates immutable order/session/amount atomically; no unrestricted lookup RPC.
-      const order = { id: session.metadata?.order_id, sessionId: session.id, amount: session.amount_total, currency: session.currency, packageId: Object.keys(packages).find(key => packages[key] === session.amount_total) };
+      const order = { id: session.metadata?.order_id, sessionId: session.id, amount: session.amount_total, currency: session.currency, packageId: packageIdForAmount(session.amount_total) };
       match(session, order);
       if (incoming?.metadata?.order_id !== order.id || incoming.amount_total !== order.amount || incoming.currency !== 'usd') throw Error('Event mismatch');
       if (event.type === 'checkout.session.expired' && session.status !== 'expired' && session.payment_status !== 'paid') throw Error('Session not expired');

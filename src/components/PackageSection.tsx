@@ -26,7 +26,7 @@ export const PackageSection = ({ onNavigate }: PackageSectionProps) => {
           </h2>
           <p className="mt-4 text-lg leading-8 text-slate-200">
             CRM means customer relationship management: a record of each customer’s details, notes, and conversations.
-            Choose booking on its own, or a website with booking and CRM.
+            Choose a generated business website, or a website with booking and CRM.
           </p>
         </div>
 
@@ -98,7 +98,7 @@ export const PackageSection = ({ onNavigate }: PackageSectionProps) => {
           </h3>
           <div className="hidden grid-cols-3 gap-4 border-b border-[#2283B8]/25 bg-[#003B5C]/80 px-6 py-3 text-sm font-semibold text-slate-200 md:grid">
             <span>Item</span>
-            <span>{bookingPackage.priceDisplay} booking only</span>
+            <span>{bookingPackage.priceDisplay} website</span>
             <span>{websiteCrmPackage.priceDisplay} website + CRM</span>
           </div>
           <div>

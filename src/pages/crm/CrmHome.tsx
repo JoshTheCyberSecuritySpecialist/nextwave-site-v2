@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useOutletContext } from 'react-router-dom';
 import type { CrmSelection } from '../../lib/crm';
-import { bookingPackage, websiteCrmPackage } from '../../data/offers';
+import { businessWebsitePackage, legacyBookingPackage, websiteCrmPackage } from '../../data/offers';
 import { customerCounts, customerError, recentActivity, type CustomerActivity } from '../../lib/crm-customers';
 
 function when(value: string) {
@@ -40,12 +40,22 @@ export default function CrmHome() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-3xl font-bold">Overview</h1>
-          <p className="mt-2 max-w-2xl text-gray-300">{workspace.crmEnabled ? websiteCrmPackage.limits : bookingPackage.scopeNote}</p>
+          <p className="mt-2 max-w-2xl text-gray-300">{
+            workspace.crmEnabled
+              ? websiteCrmPackage.limits
+              : workspace.websiteEnabled
+                ? businessWebsitePackage.scopeNote
+                : legacyBookingPackage.scopeNote
+          }</p>
         </div>
         {workspace.crmEnabled && <Link to="/crm/customers/new" className="inline-flex min-h-11 items-center rounded-lg bg-[#2283B8] px-4 font-semibold">Add customer</Link>}
       </div>
       {!workspace.crmEnabled && (
-        <p className="mt-6 rounded-xl border border-gray-800 bg-[#0d1424] p-5 text-gray-200">This booking workspace does not include the customer directory, notes, or customer activity.</p>
+        <p className="mt-6 rounded-xl border border-gray-800 bg-[#0d1424] p-5 text-gray-200">
+          {workspace.websiteEnabled
+            ? 'This website workspace does not include the customer directory, notes, or customer activity.'
+            : 'This booking workspace does not include the customer directory, notes, or customer activity.'}
+        </p>
       )}
       <section className="mt-8">
         <h2 className="text-xl font-semibold">Booking setup</h2>

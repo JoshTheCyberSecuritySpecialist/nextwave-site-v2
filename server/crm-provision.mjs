@@ -17,7 +17,11 @@ const DATABASE_MESSAGES = new Map([
   ['invalid token', 'Invalid request'],
   ['invalid actor', 'Invalid request'],
   ['invalid status', 'Invalid request'],
+  ['invalid invitation message', 'Invalid request'],
 ]);
+
+const PASSWORD_MIN = 8;
+const PASSWORD_MAX = 72;
 
 function originOf(url) {
   let parsed;
@@ -43,12 +47,20 @@ function mappedDatabaseError(body) {
   return '';
 }
 
-export function createCrmProvisioning({ url, serviceKey, fetchImpl = fetch, adminEmail = ADMIN_EMAIL }) {
+export function createCrmProvisioning({ url, serviceKey, fetchImpl = fetch, adminEmail = ADMIN_EMAIL, appBaseUrl = 'http://127.0.0.1:5173' }) {
   const origin = originOf(url);
   if (typeof serviceKey !== 'string' || serviceKey.length < 20) throw Error('Supabase service key required');
   const headers = { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, Accept: 'application/json', 'Content-Type': 'application/json' };
+  let inviteOrigin;
+  try {
+    const parsed = new URL(appBaseUrl);
+    if (parsed.username || parsed.password || parsed.search || parsed.hash || parsed.pathname !== '/') throw Error('Invalid app base URL');
+    inviteOrigin = parsed.origin;
+  } catch {
+    throw Error('Invalid app base URL');
+  }
 
-  async function rpc(name, args) {
+  async function rpc(name, args, { requireOrganizationId = true } = {}) {
     const response = await fetchImpl(new URL(`/rest/v1/rpc/${name}`, origin), {
       method: 'POST', redirect: 'error', signal: AbortSignal.timeout(15000), headers, body: JSON.stringify(args),
     });
@@ -60,7 +72,8 @@ export function createCrmProvisioning({ url, serviceKey, fetchImpl = fetch, admi
       throw Error('Database operation failed');
     }
     const result = await response.json();
-    if (!result || typeof result !== 'object' || Array.isArray(result) || !UUID.test(result.organization_id ?? '')) throw Error('Database operation failed');
+    if (!result || typeof result !== 'object' || Array.isArray(result)) throw Error('Database operation failed');
+    if (requireOrganizationId && !UUID.test(result.organization_id ?? '')) throw Error('Database operation failed');
     return result;
   }
 
@@ -78,18 +91,71 @@ export function createCrmProvisioning({ url, serviceKey, fetchImpl = fetch, admi
     return { id: user.id, email };
   }
 
+  async function previewByHash(tokenHash) {
+    const result = await rpc('crm_invitation_preview', { p_token_hash: tokenHash }, { requireOrganizationId: false });
+    if (typeof result.email !== 'string' || typeof result.organization_name !== 'string') throw Error('Invitation unavailable');
+    return {
+      email: result.email,
+      organizationName: result.organization_name,
+      packageId: typeof result.package_id === 'string' ? result.package_id : null,
+      expiresAt: typeof result.expires_at === 'string' ? result.expires_at : null,
+    };
+  }
+
+  async function findAuthUserId(email) {
+    const response = await fetchImpl(new URL(`/auth/v1/admin/users?email=${encodeURIComponent(email)}`, origin), {
+      method: 'GET', redirect: 'error', signal: AbortSignal.timeout(15000), headers,
+    });
+    if (!response.ok) throw Error('Account setup failed');
+    const body = await response.json();
+    const users = Array.isArray(body?.users) ? body.users : Array.isArray(body) ? body : [];
+    const match = users.find(user => typeof user?.email === 'string' && user.email.toLowerCase() === email);
+    return match && UUID.test(match.id ?? '') ? match.id : null;
+  }
+
+  async function enqueueInvitation(organizationId, email, token) {
+    const link = `${inviteOrigin}/crm/invite?token=${encodeURIComponent(token)}`;
+    const subject = 'Your Next Wave workspace invitation';
+    const body = [
+      'You were invited to manage your Next Wave business workspace.',
+      `Open this link to create your account or sign in: ${link}`,
+      'This invitation expires in 7 days. If you did not expect this message, ignore it.',
+    ].join('\n\n');
+    return rpc('owner_invitation_enqueue', {
+      p_organization_id: organizationId,
+      p_recipient_email: email,
+      p_subject: subject,
+      p_body: body,
+    }, { requireOrganizationId: false });
+  }
+
   return {
     async provision(jwt, orderId) {
       const actor = await identity(jwt, { adminOnly: true });
       if (!UUID.test(orderId ?? '')) throw Error('Invalid request');
       const token = invitationToken();
       const result = await rpc('crm_provision_organization', { p_order_id: orderId, p_token_hash: hashToken(token), p_actor_email: actor.email });
+      const issuedToken = result.duplicate === true ? null : token;
+      if (issuedToken) {
+        try {
+          const orderEmailResponse = await fetchImpl(new URL(`/rest/v1/service_orders?id=eq.${orderId}&select=email`, origin), {
+            method: 'GET', redirect: 'error', signal: AbortSignal.timeout(15000), headers,
+          });
+          if (orderEmailResponse.ok) {
+            const rows = await orderEmailResponse.json();
+            const email = Array.isArray(rows) && typeof rows[0]?.email === 'string' ? rows[0].email : null;
+            if (email) await enqueueInvitation(result.organization_id, email, issuedToken);
+          }
+        } catch {
+          // Provisioning succeeds even when invitation email enqueue fails; admin still sees the token.
+        }
+      }
       return {
         organizationId: result.organization_id,
         duplicate: result.duplicate === true,
         status: typeof result.status === 'string' ? result.status : 'provisioned',
         packageId: typeof result.package_id === 'string' ? result.package_id : null,
-        invitationToken: result.duplicate === true ? null : token,
+        invitationToken: issuedToken,
       };
     },
     async reissue(jwt, organizationId) {
@@ -97,6 +163,18 @@ export function createCrmProvisioning({ url, serviceKey, fetchImpl = fetch, admi
       if (!UUID.test(organizationId ?? '')) throw Error('Invalid request');
       const token = invitationToken();
       const result = await rpc('crm_reissue_invitation', { p_organization_id: organizationId, p_token_hash: hashToken(token), p_actor_email: actor.email });
+      try {
+        const inviteResponse = await fetchImpl(new URL(`/rest/v1/organization_invitations?organization_id=eq.${organizationId}&accepted_at=is.null&select=email&order=created_at.desc&limit=1`, origin), {
+          method: 'GET', redirect: 'error', signal: AbortSignal.timeout(15000), headers,
+        });
+        if (inviteResponse.ok) {
+          const rows = await inviteResponse.json();
+          const email = Array.isArray(rows) && typeof rows[0]?.email === 'string' ? rows[0].email : null;
+          if (email) await enqueueInvitation(organizationId, email, token);
+        }
+      } catch {
+        // Reissue still returns the token when email enqueue fails.
+      }
       return { organizationId: result.organization_id, invitationToken: token, duplicate: false };
     },
     async setStatus(jwt, organizationId, status) {
@@ -110,6 +188,37 @@ export function createCrmProvisioning({ url, serviceKey, fetchImpl = fetch, admi
       if (typeof token !== 'string' || !TOKEN.test(token)) throw Error('Invalid request');
       const result = await rpc('crm_accept_invitation', { p_user_id: user.id, p_email: user.email, p_token_hash: hashToken(token) });
       return { organizationId: result.organization_id, role: typeof result.role === 'string' ? result.role : null, duplicate: result.duplicate === true };
+    },
+    async previewInvitation(token) {
+      if (typeof token !== 'string' || !TOKEN.test(token)) throw Error('Invalid request');
+      return previewByHash(hashToken(token));
+    },
+    async setupAccount(token, password) {
+      if (typeof token !== 'string' || !TOKEN.test(token)) throw Error('Invalid request');
+      if (typeof password !== 'string' || password.length < PASSWORD_MIN || password.length > PASSWORD_MAX) throw Error('Invalid password');
+      const preview = await previewByHash(hashToken(token));
+      const existingId = await findAuthUserId(preview.email);
+      if (existingId) {
+        return { email: preview.email, created: false, organizationName: preview.organizationName };
+      }
+      const response = await fetchImpl(new URL('/auth/v1/admin/users', origin), {
+        method: 'POST', redirect: 'error', signal: AbortSignal.timeout(15000), headers,
+        body: JSON.stringify({
+          email: preview.email,
+          password,
+          email_confirm: true,
+          app_metadata: { role: 'business_owner' },
+          user_metadata: { invited_workspace: preview.organizationName },
+        }),
+      });
+      if (!response.ok) {
+        const existingAfterRace = await findAuthUserId(preview.email);
+        if (existingAfterRace) return { email: preview.email, created: false, organizationName: preview.organizationName };
+        throw Error('Account setup failed');
+      }
+      const created = await response.json();
+      if (!created || !UUID.test(created.id ?? '')) throw Error('Account setup failed');
+      return { email: preview.email, created: true, organizationName: preview.organizationName };
     },
   };
 }

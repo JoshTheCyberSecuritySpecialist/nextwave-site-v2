@@ -1,6 +1,7 @@
 import { createServer } from 'node:http';
 import { pathToFileURL } from 'node:url';
 import { createAdminOrders } from './admin-orders.mjs';
+import { createAdminMessages } from './admin-messages.mjs';
 import { createBlogDrafts } from './blog-drafts.mjs';
 import { createCrmProvisioning } from './crm-provision.mjs';
 import { createStripe, createStripePayments, createSupabaseDb, LOCAL_DEV_ORIGINS, PRODUCTION_WEB_ORIGINS, assertStripeKeyMatchesMode, isAllowedPreviewOrigin } from './stripe-payments.mjs';
@@ -15,6 +16,17 @@ export const REQUIRED_PRODUCTION_ENV = Object.freeze([
   'STRIPE_MODE',
 ]);
 
+function failMessages(reply, error) {
+  const message = error instanceof Error ? error.message : '';
+  if (message === 'Unauthorized') return reply(401, { error: 'Unauthorized' });
+  if (message === 'Not found') return reply(404, { error: 'Not found' });
+  if (message === 'Invalid reply') return reply(400, { error: 'Invalid reply' });
+  if (message === 'Email replies are not configured.') return reply(503, { error: message });
+  if (message === 'The reply could not be sent.') return reply(502, { error: message });
+  if (message === 'The reply was sent but could not be saved.') return reply(503, { error: message });
+  return reply(503, { error: 'Messages are unavailable.' });
+}
+
 function failCrm(reply, error, fallback) {
   const message = error instanceof Error ? error.message : '';
   if (message === 'Unauthorized') return reply(401, { error: 'Unauthorized' });
@@ -23,6 +35,8 @@ function failCrm(reply, error, fallback) {
   if (message === 'Invalid request') return reply(400, { error: 'Invalid request' });
   if (message === 'Invitation unavailable') return reply(400, { error: 'The invitation could not be accepted.' });
   if (message === 'Invitation closed') return reply(409, { error: 'This invitation can no longer be replaced.' });
+  if (message === 'Invalid password') return reply(400, { error: 'Choose a password between 8 and 72 characters.' });
+  if (message === 'Account setup failed') return reply(503, { error: 'Account setup failed.' });
   return reply(503, { error: fallback });
 }
 
@@ -73,7 +87,7 @@ function hostAllowed(host, env) {
   return /^(127\.0\.0\.1|localhost)(?::\d{1,5})?$/.test(host);
 }
 
-export function productionServer({ payments, admin, drafts, provisioning, env = process.env }) {
+export function productionServer({ payments, admin, drafts, provisioning, messages, env = process.env }) {
   const corsOrigins = Array.isArray(payments.corsOrigins) && payments.corsOrigins.length ? payments.corsOrigins : [payments.origin];
   if (corsOrigins.some(origin => typeof origin !== 'string' || origin === '*')) throw Error('Origin is not allowed');
   const production = env.NODE_ENV === 'production';
@@ -152,6 +166,25 @@ export function productionServer({ payments, admin, drafts, provisioning, env = 
         }
         return reply(200, result);
       }
+      const messageMatch = /^\/api\/admin\/messages(?:\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(\/reply)?)?$/i.exec(pathname);
+      if (messageMatch) {
+        if (!messages) return reply(404, { error: 'Not found' });
+        const jwt = readJwt(req.headers.authorization);
+        if (!jwt) return reply(401, { error: 'Unauthorized' });
+        try {
+          if (!messageMatch[1] && req.method === 'GET') result = await messages.list(jwt);
+          else if (messageMatch[1] && !messageMatch[2] && req.method === 'GET') result = await messages.get(jwt, messageMatch[1]);
+          else if (messageMatch[1] && messageMatch[2] && req.method === 'POST') {
+            let input;
+            try { input = JSON.parse(raw.toString('utf8')); } catch { return reply(400, { error: 'Invalid reply' }); }
+            if (!input || typeof input !== 'object' || Array.isArray(input)) return reply(400, { error: 'Invalid reply' });
+            result = await messages.reply(jwt, messageMatch[1], input);
+          } else return reply(404, { error: 'Not found' });
+        } catch (error) {
+          return failMessages(reply, error);
+        }
+        return reply(200, result);
+      }
       if (req.method === 'POST' && pathname === '/api/admin/blog-drafts') {
         if (!drafts) return reply(404, { error: 'Not found' });
         const jwt = typeof req.headers.authorization === 'string' && req.headers.authorization.startsWith('Bearer ')
@@ -189,6 +222,30 @@ export function productionServer({ payments, admin, drafts, provisioning, env = 
           else result = await provisioning.setStatus(jwt, orgPath[1], input.status);
         } catch (error) {
           return failCrm(reply, error, 'The workspace could not be updated.');
+        }
+        return reply(200, result);
+      }
+      if (req.method === 'POST' && pathname === '/api/crm/invitations/preview') {
+        if (!provisioning?.previewInvitation) return reply(404, { error: 'Not found' });
+        let input;
+        try { input = JSON.parse(raw.toString('utf8')); } catch { return reply(400, { error: 'Invalid request' }); }
+        if (!input || typeof input !== 'object' || Array.isArray(input)) return reply(400, { error: 'Invalid request' });
+        try {
+          result = await provisioning.previewInvitation(input.token);
+        } catch (error) {
+          return failCrm(reply, error, 'The invitation could not be loaded.');
+        }
+        return reply(200, result);
+      }
+      if (req.method === 'POST' && pathname === '/api/crm/invitations/setup') {
+        if (!provisioning?.setupAccount) return reply(404, { error: 'Not found' });
+        let input;
+        try { input = JSON.parse(raw.toString('utf8')); } catch { return reply(400, { error: 'Invalid request' }); }
+        if (!input || typeof input !== 'object' || Array.isArray(input)) return reply(400, { error: 'Invalid request' });
+        try {
+          result = await provisioning.setupAccount(input.token, input.password);
+        } catch (error) {
+          return failCrm(reply, error, 'Account setup failed.');
         }
         return reply(200, result);
       }
@@ -243,16 +300,29 @@ export function productionServer({ payments, admin, drafts, provisioning, env = 
 
 export function createProductionApp(env = process.env) {
   const config = readProductionConfig(env);
-  const stripe = createStripe({ secretKey: env.STRIPE_SECRET_KEY, env, production: true, livemode: config.livemode });
+  if (config.livemode) {
+    throw Error('Live Stripe checkout is disabled until payment RPCs accept livemode sessions');
+  }
+  const stripe = createStripe({ secretKey: env.STRIPE_SECRET_KEY, env, production: true, livemode: false });
   const db = createSupabaseDb({ url: env.SUPABASE_URL, serviceKey: env.SUPABASE_SERVICE_ROLE_KEY, env, production: true });
   const admin = createAdminOrders({ url: env.SUPABASE_URL, serviceKey: env.SUPABASE_SERVICE_ROLE_KEY });
+  const messages = createAdminMessages({
+    url: env.SUPABASE_URL,
+    serviceKey: env.SUPABASE_SERVICE_ROLE_KEY,
+    resendKey: env.RESEND_API_KEY,
+    fromEmail: env.RESEND_FROM,
+  });
   const drafts = createBlogDrafts({ url: env.SUPABASE_URL, serviceKey: env.SUPABASE_SERVICE_ROLE_KEY, apiKey: env.GEMINI_API_KEY, model: env.GEMINI_MODEL });
-  const provisioning = createCrmProvisioning({ url: env.SUPABASE_URL, serviceKey: env.SUPABASE_SERVICE_ROLE_KEY });
+  const provisioning = createCrmProvisioning({
+    url: env.SUPABASE_URL,
+    serviceKey: env.SUPABASE_SERVICE_ROLE_KEY,
+    appBaseUrl: env.APP_BASE_URL,
+  });
   const payments = createStripePayments({
     stripe, db, webhookSecret: env.STRIPE_WEBHOOK_SECRET, tokenSecret: env.PAYMENT_TOKEN_SECRET,
-    origin: config.origin, env, production: true, livemode: config.livemode,
+    origin: config.origin, env, production: true, livemode: false,
   });
-  return productionServer({ payments, admin, drafts, provisioning, env });
+  return productionServer({ payments, admin, drafts, provisioning, messages, env });
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

@@ -1,8 +1,9 @@
 import { FormEvent, ReactNode, useEffect, useMemo, useState } from 'react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { bookingPackage, websiteCrmPackage } from '../data/offers';
+import { businessWebsitePackage, legacyBookingPackage, websiteCrmPackage } from '../data/offers';
 import { apiUrl } from '../lib/payments-client.mjs';
+import AdminMessages from './AdminMessages';
 
 const ADMIN_EMAIL = 'joshua@nextwavedigitalsolution.com';
 const apiEnv = { dev: import.meta.env.DEV, configured: import.meta.env.VITE_API_BASE_URL };
@@ -30,13 +31,15 @@ const nav = [
   { to: '/admin', label: 'Overview', end: true },
   { to: '/admin/orders', label: 'Orders' },
   { to: '/admin/intakes', label: 'Customer Intakes' },
+  { to: '/admin/messages', label: 'Messages' },
   { to: '/blog-admin', label: 'Blog Management' },
   { to: '/admin/settings', label: 'Settings' },
 ];
 
 function packageName(id: string) {
-  if (id === bookingPackage.id) return bookingPackage.name;
+  if (id === businessWebsitePackage.id) return businessWebsitePackage.name;
   if (id === websiteCrmPackage.id) return websiteCrmPackage.name;
+  if (id === legacyBookingPackage.id) return legacyBookingPackage.name;
   return id;
 }
 
@@ -174,11 +177,13 @@ export default function Dashboard() {
   const [workspaceError, setWorkspaceError] = useState('');
   const [workspaceBusy, setWorkspaceBusy] = useState(false);
   const detailId = location.pathname.match(/^\/admin\/orders\/([0-9a-f-]{36})$/i)?.[1] ?? '';
-  const view = detailId ? 'detail' : location.pathname === '/admin/orders' ? 'orders' : location.pathname === '/admin/intakes' ? 'intakes' : location.pathname === '/admin/settings' ? 'settings' : 'overview';
+  const messageId = location.pathname.match(/^\/admin\/messages\/([0-9a-f-]{36})$/i)?.[1] ?? '';
+  const onMessages = location.pathname === '/admin/messages' || location.pathname.startsWith('/admin/messages/');
+  const view = onMessages ? 'messages' : detailId ? 'detail' : location.pathname === '/admin/orders' ? 'orders' : location.pathname === '/admin/intakes' ? 'intakes' : location.pathname === '/admin/settings' ? 'settings' : 'overview';
   const allowed = user?.email?.toLowerCase() === ADMIN_EMAIL;
 
   useEffect(() => {
-    if (!allowed || !session?.access_token || view === 'settings') {
+    if (!allowed || !session?.access_token || view === 'settings' || view === 'messages') {
       setLoading(false);
       return;
     }
@@ -263,15 +268,18 @@ export default function Dashboard() {
       {allowed && view === 'settings' && (
         <section className="max-w-2xl">
           <h1 className="text-3xl font-bold">Settings</h1>
-          <p className="mt-4 text-gray-300">Signed in as {user?.email}. Order records on this page are read-only. Blog posts are managed from Blog Management.</p>
+          <p className="mt-4 text-gray-300">Signed in as {user?.email}. Order records on this page are read-only. Contact messages are in Messages, and blog posts are managed from Blog Management.</p>
         </section>
       )}
-      {allowed && view !== 'settings' && loading && <p className="text-gray-300">Loading orders…</p>}
-      {allowed && view !== 'settings' && error && <p role="alert" className="text-red-200">{error}</p>}
+      {allowed && view !== 'settings' && view !== 'messages' && loading && <p className="text-gray-300">Loading orders…</p>}
+      {allowed && view !== 'settings' && view !== 'messages' && error && <p role="alert" className="text-red-200">{error}</p>}
+      {allowed && view === 'messages' && session?.access_token && (
+        <AdminMessages token={session.access_token} messageId={messageId} missingId={location.pathname.startsWith('/admin/messages/') && !messageId} />
+      )}
       {allowed && !loading && !error && view === 'overview' && (
         <section>
           <h1 className="text-3xl font-bold">Overview</h1>
-          <p className="mt-3 max-w-2xl text-gray-300">Counts come from stored orders. An empty database stays at zero.</p>
+          <p className="mt-3 max-w-2xl text-gray-300">Counts come from stored orders. An empty database stays at zero. Contact form messages are listed under Messages.</p>
           <div className="mt-6"><Metrics orders={orders} /></div>
           {orders.length === 0 && <p className="mt-6 text-gray-300">No orders have been stored yet.</p>}
         </section>
@@ -320,7 +328,7 @@ export default function Dashboard() {
             <h2 className="text-xl font-semibold">Workspace</h2>
             {paidStatuses.has(detail.status) ? (
               <>
-                <p className="mt-2 text-gray-300">Provisioning uses this stored order. It does not start a new checkout and it does not email the customer.</p>
+                <p className="mt-2 text-gray-300">Provisioning uses this stored order. It does not start a new checkout. An invitation message is queued for sandbox delivery when email is configured.</p>
                 <div className="mt-4 flex flex-wrap gap-3">
                   <button type="button" disabled={workspaceBusy} className="min-h-11 rounded-lg bg-[#2283B8] px-4 font-semibold disabled:opacity-50" onClick={() => { void postWorkspace('/api/admin/organizations', { orderId: detail.id }); }}>Provision workspace</button>
                   {workspace && <button type="button" disabled={workspaceBusy} className="min-h-11 rounded-lg border border-gray-700 px-4 disabled:opacity-50" onClick={() => { void postWorkspace(`/api/admin/organizations/${workspace.organizationId}/invitation`, {}); }}>Replace invitation</button>}
@@ -331,10 +339,16 @@ export default function Dashboard() {
             {workspaceError && <p role="alert" className="mt-4 text-red-200">{workspaceError}</p>}
             {workspace && <p className="mt-4 text-gray-200">{workspace.duplicate ? 'This order already has a workspace.' : 'Workspace saved.'} Reference {workspace.organizationId}.</p>}
             {workspace?.invitationToken && (
-              <div className="mt-4">
-                <label htmlFor="invitation-code" className="block text-sm text-gray-300">Invitation code</label>
-                <input id="invitation-code" readOnly value={workspace.invitationToken} className="mt-2 min-h-11 w-full rounded-lg border border-gray-700 bg-[#0A0F1E] px-3 font-mono text-sm" />
-                <p className="mt-2 text-sm text-gray-400">Copy this code now. It is not stored in the browser and will not be shown again. No email is sent.</p>
+              <div className="mt-4 space-y-4">
+                <div>
+                  <label htmlFor="invitation-code" className="block text-sm text-gray-300">Invitation code</label>
+                  <input id="invitation-code" readOnly value={workspace.invitationToken} className="mt-2 min-h-11 w-full rounded-lg border border-gray-700 bg-[#0A0F1E] px-3 font-mono text-sm" />
+                </div>
+                <div>
+                  <label htmlFor="invitation-link" className="block text-sm text-gray-300">Owner setup link</label>
+                  <input id="invitation-link" readOnly value={`/crm/invite?token=${workspace.invitationToken}`} className="mt-2 min-h-11 w-full rounded-lg border border-gray-700 bg-[#0A0F1E] px-3 font-mono text-sm" />
+                </div>
+                <p className="text-sm text-gray-400">Copy the link or code now. The plain token is not stored in the browser and will not be shown again after you leave this page.</p>
               </div>
             )}
           </section>

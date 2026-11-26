@@ -17,7 +17,7 @@ function fixture() {
     if (fail) { fail = false; throw Error('DB offline'); }
     if (op === 'p3_checkout_prepare') {
       if (order && (order.email !== p.p_email || order.package_id !== p.p_package_id)) throw Error('Conflict');
-      return order ??= { order_id: id, created_at: new Date().toISOString(), request_id: p.p_request_id, package_id: p.p_package_id, email: p.p_email, amount: p.p_package_id === 'booking-only' ? 79900 : 149900, currency: 'usd', status: 'pending' };
+      return order ??= { order_id: id, created_at: new Date().toISOString(), request_id: p.p_request_id, package_id: p.p_package_id, email: p.p_email, amount: p.p_package_id === 'business-website' || p.p_package_id === 'booking-only' ? 79900 : 149900, currency: 'usd', status: 'pending' };
     }
     if (op === 'p3_checkout_attach') {
       if (order.stripe_session_id && order.stripe_session_id !== p.p_session_id) throw Error('Conflict');
@@ -43,7 +43,7 @@ function fixture() {
   };
   const payments = createStripePayments({ stripe, db, webhookSecret: secret, tokenSecret, env: {} });
   return { payments, stripe, db, calls, get order() { return order; }, get session() { return session; }, get jobs() { return jobs; }, fail() { fail = true; },
-    checkout(extra = {}) { return payments.checkout({ packageId: 'booking-only', email: 'test@example.invalid', requestId, ...extra }); },
+    checkout(extra = {}) { return payments.checkout({ packageId: 'business-website', email: 'test@example.invalid', requestId, ...extra }); },
     event(type = 'checkout.session.completed', eid = 'evt_fixture') { const raw = JSON.stringify({ id: eid, type, livemode: false, data: { object: session } }); return payments.webhook(raw, sign(raw, secret)); },
   };
 }

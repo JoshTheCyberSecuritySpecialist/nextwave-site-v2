@@ -1,30 +1,38 @@
-export const bookingPackage = {
+/** Legacy package retained for historical orders and admin copy only. Not sold in checkout. */
+export const legacyBookingPackage = {
   id: 'booking-only',
   name: 'Starter Online Booking System Setup',
   priceDisplay: '$799',
-  serviceLabel: 'Booking System Only — $799',
-  cta: 'Discuss My Booking Setup',
+  serviceLabel: 'Booking System Only — $799 (legacy)',
   scopeNote:
-    'This package covers the booking system only. A business website and full CRM are not included.',
-  includes: [
-    'Service setup',
-    'Appointment availability',
-    'Customer booking details collected during scheduling',
-    'Appointment management',
-    'Configuration around the agreed business requirements',
-  ],
-  kickoffNote:
-    'Hosting, ongoing support costs, calendar and service limits, and integrations are confirmed in writing before work begins.',
+    'Legacy package. New purchases use the Business Website package. Existing booking-only workspaces keep booking without a generated website or CRM.',
 } as const;
 
-const websiteMonthlyAmount = 149;
+export const businessWebsitePackage = {
+  id: 'business-website',
+  name: 'Business Website',
+  priceDisplay: '$799',
+  serviceLabel: 'Business Website — $799',
+  cta: 'Discuss My Website',
+  scopeNote:
+    'Automatically generated business website with structured editing and publishing. Booking and CRM are not included.',
+  includes: [
+    'Automatically generated business website',
+    'Up to three pages',
+    'Business information, services, contact details, and branding',
+    'Website editor, preview, and publishing',
+    '30-day support period after launch',
+  ],
+  kickoffNote:
+    'Hosting after the included period, ongoing support, and generation usage limits are confirmed in writing before launch. Recurring billing is not enabled at checkout.',
+} as const;
 
 export const websiteSetupItems = [
   'Up to five mobile-friendly website pages',
-  'Customer-supplied logo, photos and wording',
+  'Business information, services, contact details, and branding',
   'Contact form',
   'Basic SEO page titles and descriptions',
-  'Domain connection',
+  'Platform-hosted public URL; custom domain connection scoped separately',
 ] as const;
 
 export const websiteCrmPackage = {
@@ -33,58 +41,54 @@ export const websiteCrmPackage = {
   priceDisplay: '$1,499',
   serviceLabel: 'Website + Booking + CRM — $1,499',
   cta: 'Discuss My Website + CRM',
-  monthlyDisplay: `$${websiteMonthlyAmount}/month`,
-  hostingIntro: 'First 30 days of hosting included.',
-  hostingThen: `Then $${websiteMonthlyAmount}/month for continued hosted operation.`,
+  hostingIntro: 'First 30 days of platform hosting included.',
+  hostingThen: 'Continued hosting and support pricing is confirmed in writing before launch. Recurring billing is not enabled at checkout.',
   monthlyIncludes:
-    'Monthly service includes hosting, routine platform and database maintenance, and up to one hour of combined support and small content changes.',
+    'Ongoing hosting, support, and generation allowances are separate commercial terms and are not activated by the setup payment alone.',
   billingNote:
-    'No annual commitment. Recurring billing requires consent. Cancel before the next renewal; service ends after the paid period.',
+    'No subscription is started by package checkout. Any later recurring charge requires explicit consent.',
   limits:
-    'One location, one staff calendar, up to 10 services, two users, 1,000 customer records, one inbound email address and 1,000 combined sent and received emails per monthly service period.',
-  revision: 'One consolidated revision round',
+    'One location, one staff calendar, up to 10 services, two users, 1,000 customer records, up to five website pages.',
+  revision: 'Structured website edits inside the package page limit',
   training: 'One 30-minute training session',
   includes: [
     ...websiteSetupItems,
-    'Customer records containing contact details, notes, tags, booking history and communications',
+    'Website editor, preview, and publishing',
+    'Customer records containing contact details, notes, tags, and booking history',
     'Lead stages for tracking inquiries through booking and completion',
     'Appointment availability and cancellation handling',
-    'Appointment confirmations and one configurable reminder template',
-    'Individual outbound customer emails and incoming replies through one configured domain email address',
-    'Email conversations associated with customer records',
-    'Follow-up tasks with due dates',
-    'Dashboard showing new inquiries, upcoming appointments, unread messages and overdue tasks',
+    'Appointment confirmations when email delivery is configured',
     'Configured database and access controls',
-    'Basic customer contact CSV export',
-    'One consolidated revision round',
-    'One 30-minute training session',
-    'First 30 days of website, CRM and database hosting',
+    'First 30 days of website, booking, CRM, and database hosting',
   ],
 } as const;
+
+/** @deprecated Use businessWebsitePackage. Kept as alias for gradual UI updates. */
+export const bookingPackage = businessWebsitePackage;
 
 export const additionalServices = [
   {
     id: 'cybersecurity',
     path: 'cybersecurity',
     title: 'Cybersecurity',
-    summary: 'Security reviews, system hardening, and practical protection for business systems. Scoped separately from the booking and website packages.',
+    summary: 'Security reviews, system hardening, and practical protection for business systems. Scoped separately from the website packages.',
   },
   {
     id: 'it-support',
     path: 'local-it-support',
     title: 'IT Support',
-    summary: 'Help with networks, servers, backups, email, and day-to-day systems. Scoped separately from the booking and website packages.',
+    summary: 'Help with networks, servers, backups, email, and day-to-day systems. Scoped separately from the website packages.',
   },
   {
     id: 'automation',
     path: 'automation-ai',
     title: 'Automation',
-    summary: 'Workflow connections between the tools you already use. This is not included in the booking system or website + CRM package.',
+    summary: 'Workflow connections between the tools you already use. This is not included in the website packages.',
   },
 ] as const;
 
 export const serviceInterests = [
-  { id: bookingPackage.id, label: bookingPackage.serviceLabel },
+  { id: businessWebsitePackage.id, label: businessWebsitePackage.serviceLabel },
   { id: websiteCrmPackage.id, label: websiteCrmPackage.serviceLabel },
   { id: 'cybersecurity', label: 'Cybersecurity' },
   { id: 'it-support', label: 'IT Support' },
@@ -111,80 +115,80 @@ export const contactPath = (serviceId?: string) => {
 export const comparisonRows = [
   {
     label: 'Setup price',
-    booking: bookingPackage.priceDisplay,
+    booking: businessWebsitePackage.priceDisplay,
     website: websiteCrmPackage.priceDisplay,
   },
   {
     label: 'What you receive',
-    booking: 'Booking system only',
+    booking: 'Generated business website',
     website: 'Website, booking, and CRM',
   },
   {
     label: 'Business website',
-    booking: 'Not included',
-    website: 'Up to five mobile-friendly pages',
+    booking: 'Up to three pages',
+    website: 'Up to five pages',
   },
   {
-    label: 'CRM',
+    label: 'Booking and CRM',
     booking: 'Not included',
-    website: 'Customer records, notes, messages, and follow-up tasks',
+    website: 'One calendar, customer records, notes, and booking history',
   },
   {
     label: 'Ongoing cost',
-    booking: 'Confirmed in writing before work begins. No monthly CRM fee with this package.',
+    booking: 'Confirmed in writing before launch. No subscription starts at checkout.',
     website: `${websiteCrmPackage.hostingIntro} ${websiteCrmPackage.hostingThen}`,
   },
 ] as const;
 
 export const scopeFaqs = [
   {
-    question: `What does the ${bookingPackage.priceDisplay} package include?`,
-    answer: `The ${bookingPackage.priceDisplay} ${bookingPackage.name} is booking only. A business website and full CRM are not included.`,
+    question: `What does the ${businessWebsitePackage.priceDisplay} package include?`,
+    answer: `The ${businessWebsitePackage.priceDisplay} ${businessWebsitePackage.name} includes an automatically generated website with editor, preview, and publishing. Booking and CRM are not included.`,
   },
   {
     question: `What does the ${websiteCrmPackage.priceDisplay} package include?`,
-    answer: `The ${websiteCrmPackage.priceDisplay} package includes a website, booking, and CRM.`,
+    answer: `The ${websiteCrmPackage.priceDisplay} package includes a generated website, booking, and CRM.`,
   },
   {
     question: 'Is the domain name included?',
-    answer: 'Domain registration is separate. The website package includes connecting a domain you already have or register on your own.',
+    answer: 'Domain registration is separate. The first release publishes to a unique platform URL. Custom domain connection is a later step.',
   },
   {
     question: 'Is this a fully custom build?',
     answer:
-      'Packages customize an existing design and supported system configuration. Service names, branding, availability, page content, forms, and messages can be adapted within the agreed scope.',
+      'Packages generate and customize a curated website structure. Service names, branding, availability, page content, forms, and messages can be adapted within the agreed scope.',
   },
   {
     question: 'What needs a separate quote?',
     answer:
-      'SMS, payment collection, bulk email, Gmail or Outlook synchronization, migrations, multiple calendars, and bespoke development are excluded and require a separate quote.',
+      'SMS, payment collection from end customers, bulk email, Gmail or Outlook synchronization, migrations, multiple calendars, and bespoke development are excluded and require a separate quote.',
   },
   {
     question: 'What happens after the first 30 days?',
-    answer: `Continued hosted operation for the website + CRM package is ${websiteCrmPackage.monthlyDisplay} after the first 30 days. ${websiteCrmPackage.monthlyIncludes} ${websiteCrmPackage.billingNote}`,
+    answer: `Continued hosted operation is confirmed in writing. ${websiteCrmPackage.monthlyIncludes} ${websiteCrmPackage.billingNote}`,
   },
   {
-    question: 'How is booking-only hosting handled?',
+    question: 'What about older booking-only purchases?',
     answer:
-      'Booking-only hosting and support costs are confirmed before kickoff. They are not the website + CRM monthly fee.',
+      'Historical booking-only orders keep booking access without a generated website or CRM until an explicit upgrade is provisioned.',
   },
 ] as const;
 
 export const gettingStartedSteps = [
   {
     title: 'Choose a package and continue to checkout.',
-    detail: `The booking setup is ${bookingPackage.priceDisplay}. The website with booking and CRM is ${websiteCrmPackage.priceDisplay}. Contact us first if the published scope does not fit.`,
+    detail: `The business website is ${businessWebsitePackage.priceDisplay}. The website with booking and CRM is ${websiteCrmPackage.priceDisplay}. Contact us first if the published scope does not fit.`,
   },
   {
     title: 'Send the business name and project requirements after payment is confirmed.',
-    detail: 'Website customers also provide photos, wording, services, and availability.',
+    detail: 'Website customers also provide photos, wording, services, and branding preferences.',
   },
   {
-    title: 'Review the configured setup.',
-    detail: `The website + CRM package includes ${websiteCrmPackage.revision.toLowerCase()} and ${websiteCrmPackage.training.toLowerCase()}.`,
+    title: 'Accept the workspace invitation and generate the site.',
+    detail: 'After provisioning, the owner sets up an account, completes business intake, and generates a draft website.',
   },
   {
-    title: 'Launch the agreed setup.',
-    detail: 'We launch the setup that was confirmed. Timing depends on the materials and access you provide.',
+    title: 'Preview, edit, and publish.',
+    detail: 'Publish deliberately to a unique platform URL. Booking and CRM activate only for the Website + Booking + CRM package.',
   },
 ] as const;

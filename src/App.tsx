@@ -29,6 +29,7 @@ import Dashboard from "./pages/Dashboard";
 import BlogAdmin from "./pages/BlogAdmin";
 import Checkout from "./pages/Checkout";
 import CrmLogin from "./pages/CrmLogin";
+import CrmInvite from "./pages/CrmInvite";
 import CrmLayout from "./components/CrmLayout";
 import CrmHome from "./pages/crm/CrmHome";
 import BusinessProfile from "./pages/crm/BusinessProfile";
@@ -197,6 +198,7 @@ function AppRoutes() {
         <Route path="/login" element={<Login />} />
         <Route path="/book/:slug" element={<Book />} />
         <Route path="/crm/login" element={<CrmLogin />} />
+        <Route path="/crm/invite" element={<CrmInvite />} />
         <Route path="/crm" element={<CrmProtectedRoute><CrmLayout /></CrmProtectedRoute>}>
           <Route index element={<CrmHome />} />
           <Route path="profile" element={<BusinessProfile />} />

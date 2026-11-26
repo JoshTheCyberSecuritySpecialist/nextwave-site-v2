@@ -16,7 +16,7 @@ export const WebDevelopment = ({ onNavigate }: WebDevelopmentProps) => {
           </h1>
           <p className="mt-4 text-lg leading-8 text-slate-200">
             The {websiteCrmPackage.priceDisplay} package includes a business website, booking, and customer relationship management (CRM).
-            The {bookingPackage.priceDisplay} booking package does not include a website.
+            The {bookingPackage.priceDisplay} {bookingPackage.name} package includes a generated website without booking or CRM.
           </p>
           <p className="mt-4 text-base leading-7">
             <a href="/#demo" className="font-semibold text-[#7dd3f5] underline-offset-4 hover:underline">

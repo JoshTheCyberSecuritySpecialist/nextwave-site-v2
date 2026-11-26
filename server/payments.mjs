@@ -2,7 +2,11 @@ import { createHmac, timingSafeEqual, randomUUID, randomBytes } from 'node:crypt
 import { readFileSync, writeFileSync, renameSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 
-export const packages = Object.freeze({ 'booking-only': 79900, 'website-crm': 149900 });
+/** Packages that new checkout may sell. */
+export const packages = Object.freeze({ 'business-website': 79900, 'website-crm': 149900 });
+/** Historical package amounts still valid for existing orders and webhook matching. */
+export const legacyPackages = Object.freeze({ 'booking-only': 79900 });
+export const allPackageAmounts = Object.freeze({ ...legacyPackages, ...packages });
 function signedPayload(body, timestamp) {
   const payload = Buffer.isBuffer(body) ? body : Buffer.from(String(body), 'utf8');
   return Buffer.concat([Buffer.from(`${timestamp}.`, 'utf8'), payload]);

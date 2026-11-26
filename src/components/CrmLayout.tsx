@@ -28,8 +28,10 @@ export default function CrmLayout() {
         const next = rows.map(row => ({
           ...row,
           crmEnabled: byId.get(row.organizationId)?.crm_enabled === true,
+          websiteEnabled: byId.get(row.organizationId)?.website_enabled === true,
           maxCustomers: byId.get(row.organizationId)?.max_customers ?? 0,
           maxServices: byId.get(row.organizationId)?.max_services ?? null,
+          maxPages: byId.get(row.organizationId)?.max_pages ?? 0,
         }));
         if (stopped) return;
         setWorkspaces(next);
@@ -112,7 +114,7 @@ export default function CrmLayout() {
           {!loading && workspaces.length === 0 && (
             <section className="max-w-xl rounded-xl border border-gray-800 bg-[#0d1424] p-5">
               <h1 className="text-2xl font-bold">No workspace yet</h1>
-              <p className="mt-2 text-gray-300">Enter the invitation code from Next Wave. This page does not create an account.</p>
+              <p className="mt-2 text-gray-300">Enter the invitation code from Next Wave, or open the invite link at <span className="font-mono text-sm">/crm/invite</span> to create an account first.</p>
               <form className="mt-4 space-y-3" onSubmit={onAccept}>
                 <label htmlFor="invitation-code" className="block text-sm text-gray-300">Invitation code</label>
                 <input id="invitation-code" name="token" required autoComplete="off" spellCheck={false} pattern="[a-fA-F0-9]{64}" minLength={64} maxLength={64} className="min-h-11 w-full rounded-lg border border-gray-700 bg-[#0A0F1E] px-3 font-mono text-sm" />

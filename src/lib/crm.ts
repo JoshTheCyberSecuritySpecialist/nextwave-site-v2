@@ -14,8 +14,10 @@ export type Workspace = {
 
 export type CrmSelection = Workspace & {
   crmEnabled: boolean;
+  websiteEnabled: boolean;
   maxCustomers: number;
   maxServices: number | null;
+  maxPages: number;
 };
 
 type OrganizationRow = {
@@ -61,10 +63,49 @@ export async function loadEntitlements(organizationIds: string[]) {
   if (organizationIds.length === 0) return [];
   const { data, error } = await supabase
     .from('organization_entitlements')
-    .select('organization_id, crm_enabled, max_customers, max_services')
+    .select('organization_id, crm_enabled, website_enabled, max_customers, max_services, max_pages')
     .in('organization_id', organizationIds);
   if (error) throw error;
-  return (data ?? []) as { organization_id: string; crm_enabled: boolean; max_customers: number; max_services: number | null }[];
+  return (data ?? []) as {
+    organization_id: string;
+    crm_enabled: boolean;
+    website_enabled: boolean;
+    max_customers: number;
+    max_services: number | null;
+    max_pages: number;
+  }[];
+}
+
+export async function previewInvitation(token: string) {
+  let response: Response;
+  try {
+    response = await fetch(apiUrl('/api/crm/invitations/preview', apiEnv), {
+      method: 'POST',
+      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: token.trim().toLowerCase() }),
+    });
+  } catch {
+    throw Error('The invitation could not be loaded.');
+  }
+  const body = await response.json().catch(() => null) as { error?: string; email?: string; organizationName?: string } | null;
+  if (!response.ok || !body?.email) throw Error(body?.error || 'The invitation could not be loaded.');
+  return body;
+}
+
+export async function setupInvitedAccount(token: string, password: string) {
+  let response: Response;
+  try {
+    response = await fetch(apiUrl('/api/crm/invitations/setup', apiEnv), {
+      method: 'POST',
+      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: token.trim().toLowerCase(), password }),
+    });
+  } catch {
+    throw Error('Account setup failed.');
+  }
+  const body = await response.json().catch(() => null) as { error?: string; email?: string; created?: boolean } | null;
+  if (!response.ok || !body?.email) throw Error(body?.error || 'Account setup failed.');
+  return body;
 }
 
 export async function acceptInvitation(accessToken: string, token: string) {
