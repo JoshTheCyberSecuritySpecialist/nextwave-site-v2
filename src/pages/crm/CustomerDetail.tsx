@@ -1,7 +1,8 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { Link, Navigate, useOutletContext, useParams } from 'react-router-dom';
 import type { CrmSelection } from '../../lib/crm';
-import { addNote, customerError, getCustomer, listCustomerActivity, listNotes, type CustomerActivity, type CustomerNote, type CustomerSummary } from '../../lib/crm-customers';
+import { addNote, customerError, getCustomer, listCustomerActivity, listCustomerAppointments, listNotes, type CustomerActivity, type CustomerAppointment, type CustomerNote, type CustomerSummary } from '../../lib/crm-customers';
+import { formatBookingTime } from '../../lib/public-booking';
 
 function when(value: string) {
   const date = new Date(value);
@@ -15,6 +16,7 @@ export default function CustomerDetail() {
   const [customer, setCustomer] = useState<(CustomerSummary & { created_at: string }) | null>(null);
   const [notes, setNotes] = useState<CustomerNote[]>([]);
   const [activity, setActivity] = useState<CustomerActivity[]>([]);
+  const [appointments, setAppointments] = useState<CustomerAppointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [noteError, setNoteError] = useState('');
@@ -30,11 +32,13 @@ export default function CustomerDetail() {
       getCustomer(workspace.organizationId, customerId),
       listNotes(workspace.organizationId, customerId),
       listCustomerActivity(workspace.organizationId, customerId),
-    ]).then(([nextCustomer, nextNotes, nextActivity]) => {
+      listCustomerAppointments(workspace.organizationId, customerId),
+    ]).then(([nextCustomer, nextNotes, nextActivity, nextAppointments]) => {
       if (stopped) return;
       setCustomer(nextCustomer);
       setNotes(nextNotes);
       setActivity(nextActivity);
+      setAppointments(nextAppointments);
       if (!nextCustomer) setError('This customer is not in the selected workspace.');
     }).catch(reason => {
       if (!stopped) setError(customerError(reason, 'The customer could not be loaded.'));
@@ -94,6 +98,19 @@ export default function CustomerDetail() {
                   <li key={note.id} className="rounded-xl border border-gray-800 bg-[#0d1424] p-4">
                     <p className="whitespace-pre-wrap">{note.body}</p>
                     <p className="mt-2 text-sm text-gray-400">{when(note.created_at)}</p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+          <section className="mt-8">
+            <h2 className="text-xl font-semibold">Booking history</h2>
+            {appointments.length === 0 ? <p className="mt-3 text-gray-300">No linked appointments yet.</p> : (
+              <ul className="mt-4 space-y-3">
+                {appointments.map(item => (
+                  <li key={item.id} className="rounded-xl border border-gray-800 bg-[#0d1424] px-4 py-3">
+                    <p className="font-medium">{item.service_name}</p>
+                    <p className="mt-1 text-sm text-gray-300">{formatBookingTime(item.starts_at, item.timezone)} · {item.status}</p>
                   </li>
                 ))}
               </ul>

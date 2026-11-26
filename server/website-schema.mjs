@@ -8,6 +8,7 @@ export const SECTION_TYPES = Object.freeze([
   'about',
   'services_list',
   'contact_cta',
+  'contact_form',
   'hours',
   'faq',
   'text',
@@ -141,10 +142,14 @@ export function validateWebsiteContent(raw, { maxPages = 3 } = {}) {
   };
 }
 
-export function fixtureWebsiteContent({ businessName, industry, description, maxPages = 3 }) {
+export function fixtureWebsiteContent({ businessName, industry, description, maxPages = 3, bookingPath = '' } = {}) {
   const name = text(businessName, 200, { required: true, min: 1 });
   const industryLabel = text(industry, 120) || 'local services';
   const summary = text(description, 800) || `${name} provides ${industryLabel} with clear communication and reliable scheduling.`;
+  const bookHref = typeof bookingPath === 'string' && INTERNAL_HREF.test(bookingPath) ? bookingPath : '';
+  const primaryCta = bookHref
+    ? { ctaLabel: 'Book an appointment', ctaHref: bookHref }
+    : { ctaLabel: 'Contact us', ctaHref: '/contact' };
   const pages = [
     {
       type: 'home',
@@ -157,8 +162,7 @@ export function fixtureWebsiteContent({ businessName, industry, description, max
           type: 'hero',
           title: name,
           body: summary,
-          ctaLabel: 'Contact us',
-          ctaHref: '/contact',
+          ...primaryCta,
           items: [],
         },
         {
@@ -195,14 +199,21 @@ export function fixtureWebsiteContent({ businessName, industry, description, max
       description: `Contact ${name}.`,
       sections: [
         {
-          id: 'contact',
-          type: 'contact_cta',
-          title: 'Get in touch',
-          body: 'Use the contact details from your business profile. This fixture does not invent phone numbers or addresses.',
-          ctaLabel: 'Send a message',
-          ctaHref: '/contact',
+          id: 'contact-form',
+          type: 'contact_form',
+          title: 'Send a message',
+          body: 'Messages go to the business inbox. This does not create a CRM customer record.',
           items: [],
         },
+        ...(bookHref ? [{
+          id: 'contact-book',
+          type: 'contact_cta',
+          title: 'Prefer to book online?',
+          body: 'Choose a service and time on the booking page.',
+          ctaLabel: 'Open booking',
+          ctaHref: bookHref,
+          items: [],
+        }] : []),
       ],
     },
   ].slice(0, Math.max(1, Math.min(maxPages, 3)));

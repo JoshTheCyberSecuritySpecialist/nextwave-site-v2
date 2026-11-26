@@ -6,6 +6,7 @@ import { createBlogDrafts } from './blog-drafts.mjs';
 import { createCrmProvisioning } from './crm-provision.mjs';
 import { createWebsiteGenerator } from './website-generator.mjs';
 import { createWebsitePublishing } from './website-publishing.mjs';
+import { startBookingMessageWorker } from './booking-message-worker.mjs';
 import { createStripe, createStripePayments, createSupabaseDb, LOCAL_DEV_ORIGINS, PRODUCTION_WEB_ORIGINS, assertStripeKeyMatchesMode, isAllowedPreviewOrigin } from './stripe-payments.mjs';
 
 export const REQUIRED_PRODUCTION_ENV = Object.freeze([
@@ -409,11 +410,20 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   try {
     const server = createProductionApp(process.env);
     const { port, host } = listenTarget(process.env);
+    const bookingMail = startBookingMessageWorker({
+      url: process.env.SUPABASE_URL,
+      serviceKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
+      resendKey: process.env.RESEND_API_KEY,
+      fromEmail: process.env.RESEND_FROM,
+    });
     server.on('error', () => {
       console.error('API failed to start');
       process.exit(1);
     });
-    server.listen(port, host, () => console.log(`API listening on ${host}:${port}`));
+    server.listen(port, host, () => {
+      console.log(`API listening on ${host}:${port}`);
+      if (bookingMail.enabled) console.log('Booking message worker started');
+    });
   } catch (error) {
     console.error(error instanceof Error ? error.message : 'Startup failed');
     process.exit(1);

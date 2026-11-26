@@ -57,17 +57,29 @@ export default function CrmHome() {
             : 'This booking workspace does not include the customer directory, notes, or customer activity.'}
         </p>
       )}
-      <section className="mt-8">
-        <h2 className="text-xl font-semibold">Booking setup</h2>
-        <p className="mt-2 max-w-2xl text-gray-300">Save the business profile, services, and weekly hours. The booking page shows only those saved details.</p>
-        <ul className="mt-4 flex flex-wrap gap-3">
-          <li><Link to="/crm/profile" className="inline-flex min-h-11 items-center rounded-lg border border-gray-700 px-4">Business profile</Link></li>
-          <li><Link to="/crm/services" className="inline-flex min-h-11 items-center rounded-lg border border-gray-700 px-4">Services</Link></li>
-          <li><Link to="/crm/hours" className="inline-flex min-h-11 items-center rounded-lg border border-gray-700 px-4">Weekly hours</Link></li>
-          <li><Link to="/crm/booking" className="inline-flex min-h-11 items-center rounded-lg border border-gray-700 px-4">Booking page</Link></li>
-          <li><Link to="/crm/appointments" className="inline-flex min-h-11 items-center rounded-lg border border-gray-700 px-4">Appointments</Link></li>
-        </ul>
-      </section>
+      {(workspace.crmEnabled || workspace.packageId === 'booking-only') && (
+        <section className="mt-8">
+          <h2 className="text-xl font-semibold">Booking setup</h2>
+          <p className="mt-2 max-w-2xl text-gray-300">Save the business profile, services, and weekly hours. The booking page shows only those saved details.</p>
+          <ul className="mt-4 flex flex-wrap gap-3">
+            <li><Link to="/crm/profile" className="inline-flex min-h-11 items-center rounded-lg border border-gray-700 px-4">Business profile</Link></li>
+            <li><Link to="/crm/services" className="inline-flex min-h-11 items-center rounded-lg border border-gray-700 px-4">Services</Link></li>
+            <li><Link to="/crm/hours" className="inline-flex min-h-11 items-center rounded-lg border border-gray-700 px-4">Weekly hours</Link></li>
+            <li><Link to="/crm/booking" className="inline-flex min-h-11 items-center rounded-lg border border-gray-700 px-4">Booking page</Link></li>
+            <li><Link to="/crm/appointments" className="inline-flex min-h-11 items-center rounded-lg border border-gray-700 px-4">Appointments</Link></li>
+          </ul>
+        </section>
+      )}
+      {workspace.websiteEnabled && (
+        <section className="mt-8">
+          <h2 className="text-xl font-semibold">Website tools</h2>
+          <p className="mt-2 max-w-2xl text-gray-300">Generate, edit, publish the site, and review contact form messages.</p>
+          <ul className="mt-4 flex flex-wrap gap-3">
+            <li><Link to="/crm/website" className="inline-flex min-h-11 items-center rounded-lg border border-gray-700 px-4">Website studio</Link></li>
+            <li><Link to="/crm/inquiries" className="inline-flex min-h-11 items-center rounded-lg border border-gray-700 px-4">Inquiries</Link></li>
+          </ul>
+        </section>
+      )}
       {workspace.crmEnabled && loading && <div className="mt-6 grid gap-4 sm:grid-cols-2"><div className="h-28 animate-pulse rounded-xl bg-[#0d1424]" /><div className="h-28 animate-pulse rounded-xl bg-[#0d1424]" /></div>}
       {error && <p role="alert" className="mt-6 text-red-200">{error}</p>}
       {workspace.crmEnabled && counts && (

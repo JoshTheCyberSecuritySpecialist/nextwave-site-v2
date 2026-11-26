@@ -12,9 +12,10 @@ const SYSTEM = [
   'You generate structured website copy for a small business on the Next Wave platform.',
   'Return one JSON object only.',
   'Use only supported page types: home, about, services, contact.',
-  'Use only supported section types: hero, about, services_list, contact_cta, hours, faq, text.',
+  'Use only supported section types: hero, about, services_list, contact_cta, contact_form, hours, faq, text.',
   'Do not invent testimonials, awards, licenses, credentials, years in experience, prices, addresses, staff biographies, or customer counts.',
-  'Do not include http or https links. CTA hrefs may be /, /about, /services, /contact, mailto:, or tel:.',
+  'Do not include http or https links. CTA hrefs may be /, /about, /services, /contact, /book/{slug}, mailto:, or tel:.',
+  'When a booking path is provided, prefer that path for the primary CTA and include a contact_form section on the contact page.',
   'Reflect only facts supplied in the business profile. Mark gaps in unfinished[].',
 ].join(' ');
 
@@ -92,7 +93,7 @@ function parseGeneratedJson(raw) {
   }
 }
 
-function buildPrompt(profile, maxPages) {
+function buildPrompt(profile, maxPages, bookingPath = '') {
   return [
     `Create a ${maxPages}-page business website draft as JSON.`,
     `schemaVersion must be ${WEBSITE_SCHEMA_VERSION}.`,
@@ -103,10 +104,12 @@ function buildPrompt(profile, maxPages) {
     `Public phone: ${profile.public_phone || 'not provided'}`,
     `Location: ${profile.location_text || 'not provided'}`,
     `Service area: ${profile.service_area || 'not provided'}`,
-    `Primary CTA: ${profile.primary_cta_label || 'Contact us'}`,
+    `Primary CTA: ${profile.primary_cta_label || (bookingPath ? 'Book an appointment' : 'Contact us')}`,
+    bookingPath ? `Booking path (use for primary CTA href): ${bookingPath}` : 'Booking is not included; use /contact and a contact_form section.',
     `Brand primary: ${profile.brand_primary || '#2283B8'}`,
     `Style direction: ${profile.style_direction || 'clean professional'}`,
     'Include a home page plus additional pages only when enough facts exist.',
+    'Include a contact_form section on the contact page for working message submissions.',
     'Never fabricate missing contact details.',
   ].join('\n');
 }
@@ -171,10 +174,17 @@ export function createWebsiteGenerator({
     return rows[0];
   }
 
-  async function generateContent(profile, maxPages) {
-    const prompt = buildPrompt(profile, maxPages);
+  async function resolveBookingPath(organizationId, maxServices) {
+    if (!(maxServices == null || maxServices > 0)) return '';
+    const orgs = await rest(`/rest/v1/organizations?id=eq.${organizationId}&select=slug`);
+    const slug = Array.isArray(orgs) ? orgs[0]?.slug : '';
+    return typeof slug === 'string' && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug) ? `/book/${slug}` : '';
+  }
+
+  async function generateContent(profile, maxPages, bookingPath = '') {
+    const prompt = buildPrompt(profile, maxPages, bookingPath);
     if (typeof complete === 'function') {
-      const raw = await complete({ profile, maxPages, prompt });
+      const raw = await complete({ profile, maxPages, prompt, bookingPath });
       if (raw && typeof raw === 'object' && raw.fixture === true) {
         const content = validateWebsiteContent(raw.content, { maxPages });
         return { content, provider: 'fixture', fixture: true, providerRequestId: null };
@@ -189,6 +199,7 @@ export function createWebsiteGenerator({
         industry: profile.industry,
         description: profile.description,
         maxPages,
+        bookingPath,
       });
       return {
         content,
@@ -301,7 +312,10 @@ export function createWebsiteGenerator({
         const profile = await loadProfile(organizationId);
         if (profile.intake_complete !== true) throw Error('Complete business intake before generating a website.');
         const maxPages = Number(enqueued.max_pages) || 3;
-        const generated = await generateContent(profile, maxPages);
+        const entitlements = await rest(`/rest/v1/organization_entitlements?organization_id=eq.${organizationId}&select=max_services`);
+        const maxServices = Array.isArray(entitlements) ? entitlements[0]?.max_services : 0;
+        const bookingPath = await resolveBookingPath(organizationId, maxServices);
+        const generated = await generateContent(profile, maxPages, bookingPath);
         const applied = await rpc('website_apply_generation_result', {
           p_job_id: enqueued.job_id,
           p_content: generated.content,

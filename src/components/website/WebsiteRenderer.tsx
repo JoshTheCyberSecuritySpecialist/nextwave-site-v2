@@ -1,3 +1,5 @@
+import { FormEvent, useState } from 'react';
+
 type Section = {
   id: string;
   type: string;
@@ -26,8 +28,114 @@ export type WebsiteContent = {
   unfinished?: string[];
 };
 
-function SectionView({ section, primary }: { section: Section; primary: string }) {
+export type WebsiteInquiryInput = {
+  name: string;
+  email: string;
+  phone: string;
+  body: string;
+};
+
+function isInternalPageHref(href: string) {
+  return href === '/' || /^\/[a-z0-9]+(?:-[a-z0-9]+)*$/.test(href);
+}
+
+function CtaLink({
+  href,
+  label,
+  primary,
+  onNavigate,
+}: {
+  href: string;
+  label: string;
+  primary: string;
+  onNavigate?: (slug: string) => void;
+}) {
+  const className = 'mt-6 inline-flex min-h-11 items-center rounded-lg px-5 font-semibold text-white';
+  if (href.startsWith('/book/')) {
+    return <a href={href} className={className} style={{ backgroundColor: primary }}>{label}</a>;
+  }
+  if (isInternalPageHref(href) && onNavigate) {
+    const slug = href === '/' ? 'home' : href.replace(/^\//, '');
+    return (
+      <button type="button" className={className} style={{ backgroundColor: primary }} onClick={() => onNavigate(slug)}>
+        {label}
+      </button>
+    );
+  }
+  return <a href={href || '#contact'} className={className} style={{ backgroundColor: primary }}>{label}</a>;
+}
+
+function ContactFormSection({
+  section,
+  primary,
+  onSubmitInquiry,
+}: {
+  section: Section;
+  primary: string;
+  onSubmitInquiry?: (input: WebsiteInquiryInput) => Promise<void>;
+}) {
+  const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'failed'>('idle');
+  const [error, setError] = useState('');
+
+  async function onSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!onSubmitInquiry) {
+      setError('Contact form is unavailable in this preview.');
+      setStatus('failed');
+      return;
+    }
+    const form = new FormData(event.currentTarget);
+    setStatus('sending');
+    setError('');
+    try {
+      await onSubmitInquiry({
+        name: String(form.get('name') ?? ''),
+        email: String(form.get('email') ?? ''),
+        phone: String(form.get('phone') ?? ''),
+        body: String(form.get('body') ?? ''),
+      });
+      setStatus('sent');
+      event.currentTarget.reset();
+    } catch (reason) {
+      setStatus('failed');
+      setError(reason instanceof Error && reason.message ? reason.message : 'Message could not be sent.');
+    }
+  }
+
+  return (
+    <section className="px-6 py-12 sm:px-10" id={section.id}>
+      {section.title && <h2 className="text-3xl font-bold text-white">{section.title}</h2>}
+      {section.body && <p className="mt-3 max-w-2xl text-slate-300">{section.body}</p>}
+      <form className="mt-6 max-w-xl space-y-3" onSubmit={onSubmit}>
+        <label className="block text-sm text-slate-300">Name<input name="name" required maxLength={120} className="mt-1 min-h-11 w-full rounded-lg border border-white/15 bg-black/20 px-3" /></label>
+        <label className="block text-sm text-slate-300">Email<input name="email" type="email" required maxLength={254} className="mt-1 min-h-11 w-full rounded-lg border border-white/15 bg-black/20 px-3" /></label>
+        <label className="block text-sm text-slate-300">Phone<input name="phone" maxLength={40} className="mt-1 min-h-11 w-full rounded-lg border border-white/15 bg-black/20 px-3" /></label>
+        <label className="block text-sm text-slate-300">Message<textarea name="body" required maxLength={4000} rows={5} className="mt-1 w-full rounded-lg border border-white/15 bg-black/20 px-3 py-2" /></label>
+        {error && <p role="alert" className="text-sm text-red-200">{error}</p>}
+        {status === 'sent' && <p role="status" className="text-sm text-emerald-200">Message sent. The business will follow up.</p>}
+        <button type="submit" disabled={status === 'sending' || !onSubmitInquiry} className="min-h-11 rounded-lg px-5 font-semibold text-white disabled:opacity-50" style={{ backgroundColor: primary }}>
+          {status === 'sending' ? 'Sending…' : 'Send message'}
+        </button>
+      </form>
+    </section>
+  );
+}
+
+function SectionView({
+  section,
+  primary,
+  onNavigate,
+  onSubmitInquiry,
+}: {
+  section: Section;
+  primary: string;
+  onNavigate?: (slug: string) => void;
+  onSubmitInquiry?: (input: WebsiteInquiryInput) => Promise<void>;
+}) {
   if (section.hidden) return null;
+  if (section.type === 'contact_form') {
+    return <ContactFormSection section={section} primary={primary} onSubmitInquiry={onSubmitInquiry} />;
+  }
   if (section.type === 'hero') {
     return (
       <section className="px-6 py-16 sm:px-10" style={{ background: `linear-gradient(160deg, ${primary}22, transparent)` }}>
@@ -35,9 +143,9 @@ function SectionView({ section, primary }: { section: Section; primary: string }
         <h1 className="mt-4 max-w-3xl text-4xl font-bold tracking-tight text-white sm:text-5xl">{section.title}</h1>
         {section.body && <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-200">{section.body}</p>}
         {section.ctaLabel && (
-          <a href={section.ctaHref || '#contact'} className="mt-8 inline-flex min-h-11 items-center rounded-lg px-5 font-semibold text-white" style={{ backgroundColor: primary }}>
-            {section.ctaLabel}
-          </a>
+          <div className="mt-2">
+            <CtaLink href={section.ctaHref || '#contact'} label={section.ctaLabel} primary={primary} onNavigate={onNavigate} />
+          </div>
         )}
       </section>
     );
@@ -63,9 +171,7 @@ function SectionView({ section, primary }: { section: Section; primary: string }
       {section.title && <h2 className="text-3xl font-bold text-white">{section.title}</h2>}
       {section.body && <p className="mt-3 max-w-2xl whitespace-pre-wrap text-slate-300">{section.body}</p>}
       {section.ctaLabel && (
-        <a href={section.ctaHref || '#'} className="mt-6 inline-flex min-h-11 items-center rounded-lg px-5 font-semibold text-white" style={{ backgroundColor: primary }}>
-          {section.ctaLabel}
-        </a>
+        <CtaLink href={section.ctaHref || '#'} label={section.ctaLabel} primary={primary} onNavigate={onNavigate} />
       )}
     </section>
   );
@@ -75,11 +181,13 @@ export function WebsiteRenderer({
   content,
   activeSlug = 'home',
   onNavigate,
+  onSubmitInquiry,
   viewport = 'desktop',
 }: {
   content: WebsiteContent | null | undefined;
   activeSlug?: string;
   onNavigate?: (slug: string) => void;
+  onSubmitInquiry?: (input: WebsiteInquiryInput) => Promise<void>;
   viewport?: 'desktop' | 'mobile';
 }) {
   if (!content?.pages?.length) {
@@ -119,7 +227,15 @@ export function WebsiteRenderer({
             })}
           </nav>
         </header>
-        {page.sections.map(section => <SectionView key={section.id} section={section} primary={primary} />)}
+        {page.sections.map(section => (
+          <SectionView
+            key={section.id}
+            section={section}
+            primary={primary}
+            onNavigate={onNavigate}
+            onSubmitInquiry={onSubmitInquiry}
+          />
+        ))}
       </article>
     </div>
   );

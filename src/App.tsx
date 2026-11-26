@@ -46,6 +46,7 @@ import WebsiteStudio from "./pages/crm/WebsiteStudio";
 import WebsiteIntake from "./pages/crm/WebsiteIntake";
 import WebsiteEditor from "./pages/crm/WebsiteEditor";
 import WebsitePreview from "./pages/crm/WebsitePreview";
+import WebsiteInquiries from "./pages/crm/WebsiteInquiries";
 import PublicSite from "./pages/PublicSite";
 
 /* Auth */
@@ -212,6 +213,7 @@ function AppRoutes() {
           <Route path="website/intake" element={<WebsiteIntake />} />
           <Route path="website/edit" element={<WebsiteEditor />} />
           <Route path="website/preview" element={<WebsitePreview />} />
+          <Route path="inquiries" element={<WebsiteInquiries />} />
           <Route path="services" element={<ServiceList />} />
           <Route path="services/new" element={<ServiceEditor />} />
           <Route path="services/:serviceId/edit" element={<ServiceEditor />} />

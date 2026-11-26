@@ -130,6 +130,44 @@ export async function listCustomerActivity(organizationId: string, customerId: s
   return (data ?? []) as CustomerActivity[];
 }
 
+export type CustomerAppointment = {
+  id: string;
+  starts_at: string;
+  ends_at: string;
+  timezone: string;
+  status: string;
+  guest_name: string;
+  service_name: string;
+};
+
+export async function listCustomerAppointments(organizationId: string, customerId: string) {
+  const { data, error } = await supabase
+    .from('appointments')
+    .select('id, guest_name, starts_at, ends_at, timezone, status, services!appointments_service_fk(name)')
+    .eq('organization_id', organizationId)
+    .eq('customer_id', customerId)
+    .order('starts_at', { ascending: false })
+    .limit(50);
+  if (error) throw error;
+  return ((data ?? []) as Array<{
+    id: string;
+    guest_name: string;
+    starts_at: string;
+    ends_at: string;
+    timezone: string;
+    status: string;
+    services: { name: string } | Array<{ name: string }> | null;
+  }>).map(row => ({
+    id: row.id,
+    guest_name: row.guest_name,
+    starts_at: row.starts_at,
+    ends_at: row.ends_at,
+    timezone: row.timezone,
+    status: row.status,
+    service_name: Array.isArray(row.services) ? (row.services[0]?.name || 'Service') : (row.services?.name || 'Service'),
+  }));
+}
+
 function payload(organizationId: string, input: CustomerInput) {
   return {
     organization_id: organizationId,

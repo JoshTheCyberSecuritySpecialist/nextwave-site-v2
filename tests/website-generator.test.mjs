@@ -72,6 +72,12 @@ test('generator uses labeled fixtures when no Gemini key and refuses invalid out
         }]),
       };
     }
+    if (href.includes('organization_entitlements') && href.includes('max_services')) {
+      return { ok: true, json: async () => ([{ max_services: 10 }]) };
+    }
+    if (href.includes('/organizations?') && href.includes('select=slug')) {
+      return { ok: true, json: async () => ([{ slug: 'harbor-dental' }]) };
+    }
     throw Error(`unexpected ${href}`);
   };
 

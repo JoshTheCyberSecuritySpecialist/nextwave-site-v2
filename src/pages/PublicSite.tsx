@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { WebsiteRenderer, type WebsiteContent } from '../components/website/WebsiteRenderer';
-import { loadPublicWebsite, publicWebsiteError } from '../lib/public-website';
+import { loadPublicWebsite, publicWebsiteError, submitWebsiteInquiry } from '../lib/public-website';
 
 export default function PublicSite() {
   const { slug = '' } = useParams();
   const [content, setContent] = useState<WebsiteContent | null>(null);
   const [businessName, setBusinessName] = useState('');
+  const [bookingPath, setBookingPath] = useState<string | null>(null);
   const [activeSlug, setActiveSlug] = useState('home');
   const [error, setError] = useState('');
   const [missing, setMissing] = useState(false);
@@ -26,6 +27,7 @@ export default function PublicSite() {
         }
         setBusinessName(page.organization_name);
         setContent(page.content as WebsiteContent);
+        setBookingPath(page.booking_enabled && page.booking_path ? page.booking_path : null);
         setActiveSlug('home');
       })
       .catch(reason => { if (!stopped) setError(publicWebsiteError(reason, 'This website could not be loaded.')); })
@@ -58,8 +60,21 @@ export default function PublicSite() {
   return (
     <main className="min-h-screen bg-[#071018] px-4 py-8 text-white sm:px-6">
       <div className="mx-auto max-w-6xl">
-        <p className="mb-4 text-sm text-slate-400">{businessName}</p>
-        <WebsiteRenderer content={content} activeSlug={activeSlug} onNavigate={setActiveSlug} viewport="desktop" />
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-slate-400">{businessName}</p>
+          {bookingPath && (
+            <Link to={bookingPath} className="rounded-lg bg-[#2283B8] px-4 py-2 text-sm font-semibold text-white">
+              Book online
+            </Link>
+          )}
+        </div>
+        <WebsiteRenderer
+          content={content}
+          activeSlug={activeSlug}
+          onNavigate={setActiveSlug}
+          onSubmitInquiry={input => submitWebsiteInquiry(slug, input).then(() => undefined)}
+          viewport="desktop"
+        />
       </div>
     </main>
   );
