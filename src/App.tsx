@@ -44,6 +44,9 @@ import CustomerDetail from "./pages/crm/CustomerDetail";
 import CustomerEditor from "./pages/crm/CustomerEditor";
 import WebsiteStudio from "./pages/crm/WebsiteStudio";
 import WebsiteIntake from "./pages/crm/WebsiteIntake";
+import WebsiteEditor from "./pages/crm/WebsiteEditor";
+import WebsitePreview from "./pages/crm/WebsitePreview";
+import PublicSite from "./pages/PublicSite";
 
 /* Auth */
 import { AuthProvider } from "./contexts/AuthContext";
@@ -199,6 +202,7 @@ function AppRoutes() {
         {/* Auth */}
         <Route path="/login" element={<Login />} />
         <Route path="/book/:slug" element={<Book />} />
+        <Route path="/site/:slug" element={<PublicSite />} />
         <Route path="/crm/login" element={<CrmLogin />} />
         <Route path="/crm/invite" element={<CrmInvite />} />
         <Route path="/crm" element={<CrmProtectedRoute><CrmLayout /></CrmProtectedRoute>}>
@@ -206,6 +210,8 @@ function AppRoutes() {
           <Route path="profile" element={<BusinessProfile />} />
           <Route path="website" element={<WebsiteStudio />} />
           <Route path="website/intake" element={<WebsiteIntake />} />
+          <Route path="website/edit" element={<WebsiteEditor />} />
+          <Route path="website/preview" element={<WebsitePreview />} />
           <Route path="services" element={<ServiceList />} />
           <Route path="services/new" element={<ServiceEditor />} />
           <Route path="services/:serviceId/edit" element={<ServiceEditor />} />

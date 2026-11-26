@@ -5,6 +5,7 @@ import { createAdminMessages } from './admin-messages.mjs';
 import { createBlogDrafts } from './blog-drafts.mjs';
 import { createCrmProvisioning } from './crm-provision.mjs';
 import { createWebsiteGenerator } from './website-generator.mjs';
+import { createWebsitePublishing } from './website-publishing.mjs';
 import { createStripe, createStripePayments, createSupabaseDb, LOCAL_DEV_ORIGINS, PRODUCTION_WEB_ORIGINS, assertStripeKeyMatchesMode, isAllowedPreviewOrigin } from './stripe-payments.mjs';
 
 export const REQUIRED_PRODUCTION_ENV = Object.freeze([
@@ -49,6 +50,13 @@ function failCrm(reply, error, fallback) {
   if (message === 'Website generation is not configured.') return reply(503, { error: message });
   if (message === 'Invalid generated content') return reply(502, { error: message });
   if (message === 'Gemini rate limit reached' || message === 'Gemini request failed') return reply(502, { error: message });
+  if (message === 'Website publishing is not included in this package.') return reply(403, { error: message });
+  if (message === 'Draft changed during edit') return reply(409, { error: message });
+  if (message === 'Remove unfinished items before publishing.') return reply(409, { error: message });
+  if (message === 'Revision is not publishable.') return reply(400, { error: message });
+  if (message === 'Revision not found') return reply(404, { error: message });
+  if (message === 'No published site to roll back.') return reply(409, { error: message });
+  if (message === 'Revision cannot be restored.') return reply(400, { error: message });
   return reply(503, { error: fallback });
 }
 
@@ -99,7 +107,7 @@ function hostAllowed(host, env) {
   return /^(127\.0\.0\.1|localhost)(?::\d{1,5})?$/.test(host);
 }
 
-export function productionServer({ payments, admin, drafts, provisioning, messages, websites, env = process.env }) {
+export function productionServer({ payments, admin, drafts, provisioning, messages, websites, publishing, env = process.env }) {
   const corsOrigins = Array.isArray(payments.corsOrigins) && payments.corsOrigins.length ? payments.corsOrigins : [payments.origin];
   if (corsOrigins.some(origin => typeof origin !== 'string' || origin === '*')) throw Error('Origin is not allowed');
   const production = env.NODE_ENV === 'production';
@@ -237,25 +245,52 @@ export function productionServer({ payments, admin, drafts, provisioning, messag
         }
         return reply(200, result);
       }
-      const websitePath = /^\/api\/crm\/organizations\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/website(?:\/(generate))?$/i.exec(pathname);
-      if (websitePath && websites) {
+      const websitePath = /^\/api\/crm\/organizations\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/website(?:\/(generate|draft|publish|rollback|revisions|preview))?$/i.exec(pathname);
+      if (websitePath && (websites || publishing)) {
         const jwt = readJwt(req.headers.authorization);
         if (!jwt) return reply(401, { error: 'Unauthorized' });
+        const action = websitePath[2] ? websitePath[2].toLowerCase() : '';
         try {
-          if (req.method === 'GET' && !websitePath[2]) {
+          if (req.method === 'GET' && !action) {
+            if (!websites) return reply(404, { error: 'Not found' });
             result = await websites.status(jwt, websitePath[1]);
-          } else if (req.method === 'POST' && websitePath[2] === 'generate') {
+          } else if (req.method === 'GET' && action === 'revisions') {
+            if (!publishing) return reply(404, { error: 'Not found' });
+            result = await publishing.listRevisions(jwt, websitePath[1]);
+          } else if (req.method === 'GET' && action === 'preview') {
+            if (!publishing) return reply(404, { error: 'Not found' });
+            result = await publishing.previewDraft(jwt, websitePath[1]);
+          } else if (req.method === 'POST' && action === 'generate') {
+            if (!websites) return reply(404, { error: 'Not found' });
             let input = {};
             if (raw.length) {
               try { input = JSON.parse(raw.toString('utf8')); } catch { return reply(400, { error: 'Invalid generation request' }); }
             }
             if (!input || typeof input !== 'object' || Array.isArray(input)) return reply(400, { error: 'Invalid generation request' });
             result = await websites.generate(jwt, websitePath[1], input);
+          } else if (req.method === 'POST' && action === 'draft') {
+            if (!publishing) return reply(404, { error: 'Not found' });
+            let input = {};
+            try { input = JSON.parse(raw.toString('utf8')); } catch { return reply(400, { error: 'Invalid request' }); }
+            if (!input || typeof input !== 'object' || Array.isArray(input)) return reply(400, { error: 'Invalid request' });
+            result = await publishing.saveDraft(jwt, websitePath[1], input);
+          } else if (req.method === 'POST' && action === 'publish') {
+            if (!publishing) return reply(404, { error: 'Not found' });
+            let input = {};
+            try { input = JSON.parse(raw.toString('utf8')); } catch { return reply(400, { error: 'Invalid request' }); }
+            if (!input || typeof input !== 'object' || Array.isArray(input)) return reply(400, { error: 'Invalid request' });
+            result = await publishing.publish(jwt, websitePath[1], input.revisionId);
+          } else if (req.method === 'POST' && action === 'rollback') {
+            if (!publishing) return reply(404, { error: 'Not found' });
+            let input = {};
+            try { input = JSON.parse(raw.toString('utf8')); } catch { return reply(400, { error: 'Invalid request' }); }
+            if (!input || typeof input !== 'object' || Array.isArray(input)) return reply(400, { error: 'Invalid request' });
+            result = await publishing.rollback(jwt, websitePath[1], input.revisionId);
           } else {
             return reply(404, { error: 'Not found' });
           }
         } catch (error) {
-          return failCrm(reply, error, 'Website generation is unavailable.');
+          return failCrm(reply, error, 'Website services are unavailable.');
         }
         return reply(200, result);
       }
@@ -354,6 +389,10 @@ export function createProductionApp(env = process.env) {
     model: env.GEMINI_MODEL,
     allowFixture: env.NODE_ENV !== 'production',
   });
+  const publishing = createWebsitePublishing({
+    url: env.SUPABASE_URL,
+    serviceKey: env.SUPABASE_SERVICE_ROLE_KEY,
+  });
   const provisioning = createCrmProvisioning({
     url: env.SUPABASE_URL,
     serviceKey: env.SUPABASE_SERVICE_ROLE_KEY,
@@ -363,7 +402,7 @@ export function createProductionApp(env = process.env) {
     stripe, db, webhookSecret: env.STRIPE_WEBHOOK_SECRET, tokenSecret: env.PAYMENT_TOKEN_SECRET,
     origin: config.origin, env, production: true, livemode: false,
   });
-  return productionServer({ payments, admin, drafts, provisioning, messages, websites, env });
+  return productionServer({ payments, admin, drafts, provisioning, messages, websites, publishing, env });
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

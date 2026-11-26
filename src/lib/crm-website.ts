@@ -139,6 +139,48 @@ export async function generateWebsite(accessToken: string, organizationId: strin
   }>;
 }
 
+export async function saveWebsiteDraft(
+  accessToken: string,
+  organizationId: string,
+  input: { baseRevisionId: string; content: unknown; clearUnfinished?: boolean },
+) {
+  return authorizedFetch(`/api/crm/organizations/${organizationId}/website/draft`, accessToken, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  }) as Promise<{ revisionId: string; revisionNumber: number; content: unknown; status: string }>;
+}
+
+export async function publishWebsite(accessToken: string, organizationId: string, revisionId: string) {
+  return authorizedFetch(`/api/crm/organizations/${organizationId}/website/publish`, accessToken, {
+    method: 'POST',
+    body: JSON.stringify({ revisionId }),
+  }) as Promise<{ publicPath: string; publishedRevisionId: string; slug: string; status: string }>;
+}
+
+export async function rollbackWebsite(accessToken: string, organizationId: string, revisionId: string) {
+  return authorizedFetch(`/api/crm/organizations/${organizationId}/website/rollback`, accessToken, {
+    method: 'POST',
+    body: JSON.stringify({ revisionId }),
+  }) as Promise<{ publicPath?: string; publishedRevisionId: string; duplicate?: boolean }>;
+}
+
+export async function listWebsiteRevisions(accessToken: string, organizationId: string) {
+  return authorizedFetch(`/api/crm/organizations/${organizationId}/website/revisions`, accessToken) as Promise<{
+    website: { slug: string; status: string; draftRevisionId: string | null; publishedRevisionId: string | null; publicPath: string | null };
+    revisions: Array<{ id: string; revisionNumber: number; state: string; pageCount: number; createdAt: string; unfinished: string[] }>;
+  }>;
+}
+
+export async function loadPrivateWebsitePreview(accessToken: string, organizationId: string) {
+  return authorizedFetch(`/api/crm/organizations/${organizationId}/website/preview`, accessToken) as Promise<{
+    private: true;
+    slug: string;
+    content: unknown;
+    revisionId: string;
+    revisionNumber: number;
+  }>;
+}
+
 export function missingIntakeFields(input: WebsiteIntakeInput) {
   const missing: string[] = [];
   if (!input.publicName.trim()) missing.push('Business name');
