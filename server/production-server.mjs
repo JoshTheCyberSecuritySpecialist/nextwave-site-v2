@@ -223,8 +223,10 @@ export function productionServer({ payments, admin, drafts, provisioning, env = 
         } else return reply(404, { error: 'Not found' });
       }
       reply(200, result);
-    } catch {
-      reply(webhook ? 503 : 400, { error: 'Request rejected; retry with the same request ID.' });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '';
+      const signatureRejected = message === 'Invalid webhook signature' || message === 'Invalid webhook timestamp';
+      reply(webhook && !signatureRejected ? 503 : 400, { error: 'Request rejected; retry with the same request ID.' });
     }
   });
   server.requestTimeout = 90000;

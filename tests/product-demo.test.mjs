@@ -10,8 +10,10 @@ test('homepage uses the existing CRM demo without autoplay', async () => {
 
   const demo = await readFile(new URL('../src/components/ProductDemo.tsx', import.meta.url), 'utf8');
   const home = await readFile(new URL('../src/pages/Home.tsx', import.meta.url), 'utf8');
-  assert.match(demo, /src="\/videos\/nextwave-crm-demo\.mp4"/);
-  assert.match(demo, /poster="\/videos\/nextwave-crm-demo-poster\.jpg"/);
+  assert.match(demo, /const VIDEO_SRC = '\/videos\/nextwave-crm-demo\.mp4'/);
+  assert.match(demo, /const POSTER_SRC = '\/videos\/nextwave-crm-demo-poster\.jpg'/);
+  assert.match(demo, /src=\{VIDEO_SRC\}/);
+  assert.match(demo, /poster=\{POSTER_SRC\}/);
   assert.match(demo, /\bcontrols\b/);
   assert.doesNotMatch(demo, /autoPlay|autoplay/);
   assert.match(demo, /Explore Our Booking & CRM Solutions/);

@@ -43,7 +43,7 @@ export default function Appointments() {
   return (
     <section className="max-w-3xl">
       <h1 className="text-3xl font-bold">Appointments</h1>
-      <p className="mt-2 text-gray-300">Bookings made on the public page for this workspace. Nothing is listed until a guest books.</p>
+      <p className="mt-2 text-gray-300">Bookings made on the public page for this workspace, from the past 90 days through upcoming times. Nothing is listed until a guest books.</p>
       {loading && <div className="mt-6 h-40 animate-pulse rounded-xl bg-[#0d1424]" />}
       {error && <p role="alert" className="mt-6 text-red-200">{error}</p>}
       {!loading && !error && appointments.length === 0 && <p className="mt-6 text-gray-300">No appointments yet.</p>}

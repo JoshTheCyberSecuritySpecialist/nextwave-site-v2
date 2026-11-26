@@ -60,6 +60,7 @@ function messageOf(error: unknown) {
 
 export function guestBookingError(error: unknown, fallback: string) {
   const { message, code } = messageOf(error);
+  if (message.includes('booking was cancelled')) return 'That earlier booking was cancelled. Submit this time again.';
   if (message.includes('appointment conflict') || message.includes('slot is not open')) return 'That time was just taken. Choose another time.';
   if (message.includes('idempotency conflict')) return 'This submission does not match the earlier attempt. Refresh the page and choose the time again.';
   if (message.includes('invalid booking')) return 'Enter a name, a valid email, and a phone number.';
@@ -166,8 +167,12 @@ export async function createGuestBooking(input: {
   return receipt;
 }
 
+function submissionStorageKey(parts: string) {
+  return `booking-submit:${parts}`;
+}
+
 export function submissionKey(parts: string) {
-  const storageKey = `booking-submit:${parts}`;
+  const storageKey = submissionStorageKey(parts);
   try {
     const existing = sessionStorage.getItem(storageKey);
     if (existing) return existing;
@@ -179,6 +184,14 @@ export function submissionKey(parts: string) {
   }
 }
 
+export function clearSubmissionKey(parts: string) {
+  try {
+    sessionStorage.removeItem(submissionStorageKey(parts));
+  } catch {
+    /* The next attempt still sends a new key when storage is unavailable. */
+  }
+}
+
 function serviceName(value: AppointmentRow['services']) {
   if (!value) return 'Service';
   if (Array.isArray(value)) return value[0]?.name || 'Service';
@@ -186,14 +199,14 @@ function serviceName(value: AppointmentRow['services']) {
 }
 
 export async function listAppointments(organizationId: string) {
-  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const since = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
   const { data, error } = await supabase
     .from('appointments')
     .select('id, guest_name, guest_email, guest_phone, starts_at, ends_at, timezone, status, services!appointments_service_fk(name)')
     .eq('organization_id', organizationId)
     .gte('starts_at', since)
     .order('starts_at', { ascending: true })
-    .limit(100);
+    .limit(200);
   if (error) throw error;
   return ((data ?? []) as AppointmentRow[]).map(row => ({
     id: row.id,

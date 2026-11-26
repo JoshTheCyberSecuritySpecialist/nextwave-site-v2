@@ -265,54 +265,11 @@ export async function listWeeklyHours(organizationId: string) {
   return { calendarId: calendar.data.id as string, windows: (hours.data ?? []) as WeeklyWindow[] };
 }
 
-async function ensureCalendar(organizationId: string) {
-  const existing = await supabase.from('calendars').select('id').eq('organization_id', organizationId).maybeSingle();
-  if (existing.error) throw existing.error;
-  if (existing.data) return existing.data.id as string;
-  const created = await supabase
-    .from('calendars')
-    .insert({ organization_id: organizationId, name: 'Staff calendar' })
-    .select('id')
-    .single();
-  if (!created.error) return created.data.id as string;
-  if (created.error.code !== '23505' && !created.error.message.includes('calendar cap exceeded')) throw created.error;
-  const again = await supabase.from('calendars').select('id').eq('organization_id', organizationId).maybeSingle();
-  if (again.error) throw again.error;
-  if (!again.data) throw created.error;
-  return again.data.id as string;
-}
-
 export async function saveWeeklyHours(organizationId: string, days: DayInput[]) {
   const open = parseOpenDays(days);
-  const current = open.length === 0 ? await listWeeklyHours(organizationId) : null;
-  const calendarId = open.length > 0 || current?.calendarId ? await ensureCalendar(organizationId) : null;
-  if (calendarId && open.length > 0) {
-    const saved = await supabase.from('weekly_hours').upsert(open.map(window => ({
-      organization_id: organizationId,
-      calendar_id: calendarId,
-      weekday: window.weekday,
-      start_minute: window.start_minute,
-      end_minute: window.end_minute,
-    })), { onConflict: 'calendar_id,weekday' });
-    if (saved.error) throw saved.error;
-  }
-  if (calendarId) {
-    const closed = days.filter(day => day.closed).map(day => day.weekday);
-    if (closed.length > 0) {
-      const removed = await supabase
-        .from('weekly_hours')
-        .delete()
-        .eq('organization_id', organizationId)
-        .eq('calendar_id', calendarId)
-        .in('weekday', closed);
-      if (removed.error) throw removed.error;
-    }
-  }
-  const { data, error } = await supabase
-    .from('organization_settings')
-    .update({ hours: open })
-    .eq('organization_id', organizationId)
-    .select('organization_id');
+  const { error } = await supabase.rpc('crm_replace_weekly_hours', {
+    p_organization_id: organizationId,
+    p_windows: open,
+  });
   if (error) throw error;
-  if (!data?.length) throw Error('booking setup is not available');
 }

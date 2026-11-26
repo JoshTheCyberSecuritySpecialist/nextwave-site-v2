@@ -232,12 +232,122 @@ test('a guest books one open time and cannot double-book or cross tenants', asyn
     await useRole(db, 'anon');
     const reopened = json((await db.query(`select booking_open_slots($1, $2) as slots`, [slugA, serviceA.id])).rows[0].slots);
     assert.equal(reopened.some(slot => new Date(slot.starts_at).toISOString() === new Date(start).toISOString()), true);
+    await assert.rejects(
+      db.query(
+        `select booking_create_appointment($1, $2, $3::timestamptz, 'Ada Guest', 'Ada@Example.test', '555-0100', $4)`,
+        [slugA, serviceA.id, start, keyOne],
+      ),
+      /booking was cancelled/,
+    );
     const again = json((await db.query(
       `select booking_create_appointment($1, $2, $3::timestamptz, 'Bea Guest', 'bea@example.test', '555-0199', $4) as result`,
       [slugA, serviceA.id, start, keyTwo],
     )).rows[0].result);
     assert.equal(again.duplicate, false);
     assert.notEqual(again.appointment_id, booked.appointment_id);
+    await db.exec('reset role');
+
+    await useRole(db, 'authenticated', { id: userB, email: 'owner-b@example.test' });
+    const shortService = (await db.query(
+      `insert into services (organization_id, name, duration_minutes) values ($1, 'Quick visit', 30) returning id`,
+      [orgB],
+    )).rows[0];
+    const longService = (await db.query(
+      `insert into services (organization_id, name, duration_minutes) values ($1, 'Long visit', 60) returning id`,
+      [orgB],
+    )).rows[0];
+    const openWeek = JSON.stringify([0, 1, 2, 3, 4, 5, 6].map(weekday => ({ weekday, start_minute: 540, end_minute: 1020 })));
+    await db.query(`select crm_replace_weekly_hours($1::uuid, $2::jsonb)`, [orgB, openWeek]);
+    await db.query(`update organization_settings set booking_published = true where organization_id = $1`, [orgB]);
+    await db.exec('reset role');
+    await useRole(db, 'anon');
+    const wide = json((await db.query(`select booking_open_slots($1, $2) as slots`, [slugB, shortService.id])).rows[0].slots);
+    const horizon = (await db.query(`
+      select count(*)::int as count,
+             max((value->>'starts_at')::timestamptz) - min((value->>'starts_at')::timestamptz) >= interval '7 days' as week_apart,
+             count(*) = count(distinct value->>'starts_at') as unique_starts
+      from jsonb_array_elements($1::jsonb)
+    `, [JSON.stringify(wide)])).rows[0];
+    assert.ok(horizon.count > 80, `14-day window returned ${horizon.count} slots`);
+    assert.equal(horizon.week_apart, true);
+    assert.equal(horizon.unique_starts, true);
+    const longSlots = json((await db.query(`select booking_open_slots($1, $2) as slots`, [slugB, longService.id])).rows[0].slots);
+    const longByStart = new Set(longSlots.map(slot => new Date(slot.starts_at).toISOString()));
+    const shortByStart = new Set(wide.map(slot => new Date(slot.starts_at).toISOString()));
+    const overlap = wide.map(slot => new Date(slot.starts_at)).find(startAt => {
+      const plus30 = new Date(startAt.getTime() + 30 * 60 * 1000).toISOString();
+      const plus60 = new Date(startAt.getTime() + 60 * 60 * 1000).toISOString();
+      return longByStart.has(startAt.toISOString()) && shortByStart.has(plus30) && longByStart.has(plus60);
+    });
+    assert.ok(overlap, 'expected a 30-minute slot inside a 60-minute slot');
+    const overlapStart = overlap.toISOString();
+    const halfHourLater = new Date(overlap.getTime() + 30 * 60 * 1000).toISOString();
+    const heldShort = json((await db.query(
+      `select booking_create_appointment($1, $2, $3::timestamptz, 'Cora Guest', 'cora@example.test', '555-0140', $4) as result`,
+      [slugB, shortService.id, halfHourLater, 'e'.repeat(32)],
+    )).rows[0].result);
+    assert.equal(heldShort.duplicate, false);
+    await assert.rejects(
+      db.query(
+        `select booking_create_appointment($1, $2, $3::timestamptz, 'Drew Guest', 'drew@example.test', '555-0141', $4)`,
+        [slugB, longService.id, overlapStart, 'f'.repeat(32)],
+      ),
+      /slot is not open/,
+    );
+    await db.exec('reset role');
+    await useRole(db, 'authenticated', { id: userB, email: 'owner-b@example.test' });
+    await db.query(`update appointments set status = 'cancelled' where id = $1`, [heldShort.appointment_id]);
+    await db.exec('reset role');
+    await useRole(db, 'anon');
+    const freed = json((await db.query(
+      `select booking_create_appointment($1, $2, $3::timestamptz, 'Drew Guest', 'drew@example.test', '555-0141', $4) as result`,
+      [slugB, longService.id, overlapStart, 'f'.repeat(32)],
+    )).rows[0].result);
+    assert.equal(freed.duplicate, false);
+    await db.exec('reset role');
+    const fallBack = (await db.query(`
+      select min(d)::date as day
+      from generate_series(current_date, current_date + interval '400 days', interval '1 day') d
+      where extract(month from d) = 11 and extract(dow from d) = 0 and extract(day from d) <= 7 and d::date > current_date
+    `)).rows[0].day;
+    const fold = (await db.query(`
+      select mapped,
+             mapped - interval '1 hour' as other,
+             extract(hour from mapped at time zone 'America/New_York')::int as mapped_hour,
+             extract(hour from (mapped - interval '1 hour') at time zone 'America/New_York')::int as other_hour,
+             extract(dow from $1::date)::int as dow
+      from (select ($1::date + time '01:00') at time zone 'America/New_York' as mapped) times
+    `, [fallBack])).rows[0];
+    assert.equal(fold.mapped_hour, 1);
+    assert.equal(fold.other_hour, 1);
+    await useRole(db, 'authenticated', { id: userB, email: 'owner-b@example.test' });
+    await db.query(`select crm_replace_weekly_hours($1::uuid, $2::jsonb)`, [orgB, JSON.stringify([{ weekday: fold.dow, start_minute: 0, end_minute: 180 }])]);
+    await db.exec('reset role');
+    const mappedOpen = (await db.query(`select booking_slot_is_open($1::uuid, $2::uuid, $3::timestamptz) as open`, [orgB, longService.id, fold.mapped])).rows[0].open;
+    const otherOpen = (await db.query(`select booking_slot_is_open($1::uuid, $2::uuid, $3::timestamptz) as open`, [orgB, longService.id, fold.other])).rows[0].open;
+    assert.equal(mappedOpen, true);
+    assert.equal(otherOpen, false);
+    const skippedSpringHour = (await db.query(`
+      select ((spring at time zone 'America/New_York') at time zone 'America/New_York') is distinct from spring as skipped
+      from (
+        select min(d)::timestamp + time '02:00' as spring
+        from generate_series(current_date, current_date + interval '400 days', interval '1 day') d
+        where extract(month from d) = 3 and extract(dow from d) = 0 and extract(day from d) between 8 and 14 and d::date > current_date
+      ) days
+    `)).rows[0].skipped;
+    assert.equal(skippedSpringHour, true);
+    await useRole(db, 'authenticated', { id: userB, email: 'owner-b@example.test' });
+    await db.query(`update organization_settings set booking_published = false where organization_id = $1`, [orgB]);
+    await db.exec('reset role');
+    await useRole(db, 'anon');
+    assert.equal(json((await db.query(`select booking_public_page($1) as page`, [slugB])).rows[0].page), null);
+    await assert.rejects(
+      db.query(
+        `select booking_create_appointment($1, $2, $3::timestamptz, 'Eve Guest', 'eve@example.test', '555-0142', $4)`,
+        [slugB, shortService.id, halfHourLater, '1'.repeat(32)],
+      ),
+      /booking is not available/,
+    );
     await db.exec('reset role');
 
     await useRole(db, 'service_role');

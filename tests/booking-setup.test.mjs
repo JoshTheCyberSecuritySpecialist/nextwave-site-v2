@@ -104,6 +104,8 @@ test('booking setup isolates services and hours and caps website services at 10'
     assert.equal((await db.query(`select has_table_privilege('authenticated', 'public.organization_settings', 'update') as ok`)).rows[0].ok, true);
     assert.equal((await db.query(`select has_table_privilege('authenticated', 'public.organization_settings', 'insert') as ok`)).rows[0].ok, false);
     assert.equal((await db.query(`select has_function_privilege('anon', 'public.crm_prepare_service()', 'execute') as ok`)).rows[0].ok, false);
+    assert.equal((await db.query(`select has_function_privilege('anon', 'public.crm_replace_weekly_hours(uuid,jsonb)', 'execute') as ok`)).rows[0].ok, false);
+    assert.equal((await db.query(`select has_function_privilege('authenticated', 'public.crm_replace_weekly_hours(uuid,jsonb)', 'execute') as ok`)).rows[0].ok, true);
     const calendarUnique = await db.query(`
       select indexdef from pg_indexes
       where schemaname = 'public' and tablename = 'calendars' and indexdef like '%UNIQUE%'
@@ -245,6 +247,29 @@ test('booking setup isolates services and hours and caps website services at 10'
       `insert into weekly_hours (organization_id, calendar_id, weekday, start_minute, end_minute) values ($1, $2, 2, 600, 900)`,
       [orgB, calendarB.id],
     );
+    await assert.rejects(
+      db.query(`select crm_replace_weekly_hours($1::uuid, '[{"weekday":1,"start_minute":540,"end_minute":1020}]'::jsonb)`, [orgA]),
+      /booking setup is not available/,
+    );
+    await db.query(
+      `select crm_replace_weekly_hours($1::uuid, '[{"weekday":1,"start_minute":540,"end_minute":960},{"weekday":3,"start_minute":600,"end_minute":900}]'::jsonb)`,
+      [orgB],
+    );
+    const replacedHours = await db.query(
+      `select weekday, start_minute, end_minute from weekly_hours where organization_id = $1 order by weekday`,
+      [orgB],
+    );
+    assert.deepEqual(replacedHours.rows.map(row => [row.weekday, row.start_minute, row.end_minute]), [[1, 540, 960], [3, 600, 900]]);
+    const copiedHours = (await db.query(`select hours from organization_settings where organization_id = $1`, [orgB])).rows[0].hours;
+    assert.equal(copiedHours.length, 2);
+    await assert.rejects(
+      db.query(`select crm_replace_weekly_hours($1::uuid, '[{"weekday":1,"start_minute":900,"end_minute":540}]'::jsonb)`, [orgB]),
+      /hours must be a weekly schedule/,
+    );
+    assert.deepEqual(
+      (await db.query(`select weekday from weekly_hours where organization_id = $1 order by weekday`, [orgB])).rows.map(row => row.weekday),
+      [1, 3],
+    );
     const ownProfile = (await db.query(
       `update organization_settings set booking_intro = 'Choose a time', policies = 'Arrive early', timezone = 'America/Denver', hours = '[]'::jsonb where organization_id = $1 returning booking_intro`,
       [orgB],
@@ -307,6 +332,10 @@ test('booking setup isolates services and hours and caps website services at 10'
     );
     await assert.rejects(
       db.query(`insert into calendars (organization_id, name) values ($1, 'Disabled calendar')`, [orgA]),
+      /booking setup is not available/,
+    );
+    await assert.rejects(
+      db.query(`select crm_replace_weekly_hours($1::uuid, '[]'::jsonb)`, [orgA]),
       /booking setup is not available/,
     );
     await db.exec('reset role');

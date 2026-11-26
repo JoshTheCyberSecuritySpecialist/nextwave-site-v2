@@ -4,6 +4,7 @@ import {
   createGuestBooking,
   formatBookingTime,
   groupSlots,
+  clearSubmissionKey,
   guestBookingError,
   loadOpenSlots,
   loadPublicBookingPage,
@@ -70,7 +71,8 @@ export default function Book() {
     if (!page || !service || !slot) return;
     setSaving(true);
     setError('');
-    const key = submissionKey(`${page.slug}:${service.id}:${slot.starts_at}:${email.trim().toLowerCase()}`);
+    const submissionParts = `${page.slug}:${service.id}:${slot.starts_at}:${email.trim().toLowerCase()}`;
+    const key = submissionKey(submissionParts);
     try {
       const next = await createGuestBooking({
         slug: page.slug,
@@ -83,6 +85,8 @@ export default function Book() {
       });
       setReceipt(next);
     } catch (reason) {
+      const raw = reason && typeof reason === 'object' && 'message' in reason ? String(reason.message) : '';
+      if (raw.includes('booking was cancelled')) clearSubmissionKey(submissionParts);
       setError(guestBookingError(reason, 'The appointment could not be booked.'));
       setSlotsLoading(true);
       loadOpenSlots(page.slug, service.id)

@@ -207,7 +207,7 @@ test('health, CORS, mock route, and raw webhook body', async () => {
     await response.text();
     assert.equal(databaseCalls, 1);
     response = await fetch(`${base}/api/webhook`, { method: 'POST', headers: { 'Stripe-Signature': signature }, body: JSON.stringify(JSON.parse(raw)) });
-    assert.equal(response.status, 503);
+    assert.equal(response.status, 400);
     assert.equal(databaseCalls, 1);
     const text = await response.text();
     assert.equal(text.includes(secret), false);
